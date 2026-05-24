@@ -25,19 +25,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Inject API base URL into app.js
+      - name: Inject API base URL into app.js (only if secret is set)
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
         run: |
-          # Replace localhost:3000 fallback with the deployed backend URL from the secret
-          sed -i "s|'http://localhost:3000'|'${{ secrets.API_BASE_URL }}'|g" app.js
-          echo "API_BASE_URL injected: ${{ secrets.API_BASE_URL }}"
+          if [ -n "$API_BASE_URL" ]; then
+            sed -i "s|'http://localhost:3000'|'${API_BASE_URL}'|g" app.js
+            echo "✅ API_BASE_URL injected: ${API_BASE_URL}"
+          else
+            echo "⚠️  API_BASE_URL secret not set — keeping localhost:3000 (app still works, Neon sync disabled)"
+          fi
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload artifact (static files only — no node_modules or .env)
+      - name: Upload static frontend files
         uses: actions/upload-pages-artifact@v3
         with:
-          # Upload only the static frontend files
           path: '.'
 
       - name: Deploy to GitHub Pages
