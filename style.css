@@ -1044,6 +1044,31 @@ button, .btn, a.btn {
   transform: translateY(-1px);
 }
 
+/* Sign-in gate button shown to guests instead of Generate Answer */
+.btn-signin-gate {
+  background: linear-gradient(135deg, rgba(0, 113, 227, 0.08), rgba(0, 113, 227, 0.04));
+  color: var(--primary);
+  border: 1px dashed rgba(0, 113, 227, 0.35);
+  padding: 9px 18px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 13.5px;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-signin-gate:hover {
+  background: rgba(0, 113, 227, 0.12);
+  border-color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--primary-glow);
+}
+[data-theme="light"] .btn-signin-gate {
+  background: rgba(0, 102, 204, 0.05);
+  border-color: rgba(0, 102, 204, 0.3);
+}
+
 .answer-state.error {
   color: var(--danger); 
   border: 1px solid rgba(255, 69, 58, 0.2);

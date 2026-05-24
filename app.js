@@ -637,6 +637,12 @@ function toggleAnswer(subjectId, questionIndex) {
 }
 
 async function handleGenerateAnswer(subjectId, questionIndex) {
+  // ✅ Auth gate — must be signed in
+  if (!state.currentUser) {
+    openAuthMode('signin');
+    return;
+  }
+
   const subject = state.subjects[subjectId];
   const questionText = subject.questions[questionIndex].text || subject.questions[questionIndex];
   const qObj = typeof subject.questions[questionIndex] === 'object' ? subject.questions[questionIndex] : { text: questionText };
@@ -647,13 +653,13 @@ async function handleGenerateAnswer(subjectId, questionIndex) {
 
   if (state.useTurbo) {
     if (!state.groqKey) {
-      alert("Please set your Groq API Key in settings first for Turbo Mode.");
+      alert("Please set your Groq API Key in Settings first for Turbo Mode.");
       toggleSettings();
       return;
     }
   } else {
     if (!state.apiKey) {
-      alert("Please set your OpenRouter API Key in settings first.");
+      alert("Please set your OpenRouter API Key in Settings first.");
       toggleSettings();
       return;
     }
@@ -698,6 +704,12 @@ async function sendToNeon(subjectId, questionText, answerText) {
 }
 
 async function handleGenerateAll(subjectId) {
+  // ✅ Auth gate
+  if (!state.currentUser) {
+    openAuthMode('signin');
+    return;
+  }
+
   const subject = state.subjects[subjectId];
   if (state.useTurbo) {
     if (!state.groqKey) {
@@ -971,7 +983,16 @@ function renderQuestionList() {
     let actionsHtml = '';
     let contentHtml = '';
 
-    if (q.obj.generating) {
+    if (!state.currentUser) {
+      // ── Guest: locked state ─────────────────────────────────────────────
+      actionsHtml = `
+        <button class="btn btn-signin-gate" onclick="openAuthMode('signin')">
+          <i class="ph-bold ph-lock"></i> Sign In to Generate Answer
+        </button>
+        ${renderAiLinksHelper()}
+      `;
+      // No contentHtml — guests see no answers
+    } else if (q.obj.generating) {
       actionsHtml = `<button class="btn btn-primary" disabled style="opacity:0.8;"><i class="ph-bold ph-spinner ph-spin"></i> Generating...</button>`;
     } else if (q.isAnswered) {
       actionsHtml = `
@@ -983,9 +1004,7 @@ function renderQuestionList() {
       `;
       
       if (q.obj.expanded) {
-        // Simple markdown parsing for the answer
         let formattedAnswer = window.marked ? marked.parse(q.answer) : q.answer;
-            
         contentHtml = `
           <div class="answer-box">
              <div class="answer-actions">
