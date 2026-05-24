@@ -12,7 +12,7 @@
   --success: #06D6A0;    /* teal green */
   --text-primary: #1A1A1A;
   --text-secondary: #4A4A4A;
-  --border: #1A1A1A;     /* thick black borders */
+  --border: #e6e1db;     /* softened border (light warm gray) */
   --shadow-color: 26,26,26; /* shadow rgb */
 
   --bg-color: var(--background);
@@ -102,7 +102,7 @@ button, .btn, a.btn {
 .btn-secondary {
   background-color: white;
   color: var(--text-main);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-weak);
   box-shadow: var(--shadow-sm);
 }
 .btn-secondary:hover:not(:disabled) {
@@ -118,9 +118,9 @@ button, .btn, a.btn {
   margin-bottom: 10px;
   border: none;
   box-shadow: none;
-  position: sticky;
-  top: 8px;
-  z-index: 50;
+  position: static; /* no longer sticky */
+  top: auto;
+  z-index: auto;
 }
 .header-content { display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; }
 .header-controls { display: flex; align-items: center; gap: 16px; }
@@ -151,7 +151,7 @@ button, .btn, a.btn {
 .tab {
   background: white;
   border-radius: 999px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-weak);
   padding: 10px 20px;
   color: var(--text-muted);
   font-weight: 600;
@@ -171,7 +171,7 @@ button, .btn, a.btn {
   border-color: transparent;
 }
 
-.year-pill { padding: 8px 14px; border-radius: 999px; background: white; border:1px solid var(--border); box-shadow: var(--shadow-sm); font-weight:600; }
+.year-pill { padding: 8px 14px; border-radius: 999px; background: white; border:1px solid var(--border-weak); box-shadow: var(--shadow-sm); font-weight:600; }
 .year-pill.active { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 8px 30px rgba(79,70,229,0.12); }
 .btn-secondary[title] { position: relative; }
 
@@ -202,7 +202,7 @@ button, .btn, a.btn {
   flex-wrap: wrap;
 }
 .search-bar {
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-weak);
   border-radius: var(--radius-sm);
   padding: 12px 20px;
   font-size: 15px;
@@ -217,7 +217,7 @@ button, .btn, a.btn {
 }
 .search-bar:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+  box-shadow: 0 0 0 3px rgba(255,107,53,0.12);
 }
 
 .filters {
@@ -226,7 +226,7 @@ button, .btn, a.btn {
   padding: 6px;
   border-radius: var(--radius-sm);
   align-items: center;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-weak);
   box-shadow: var(--shadow-sm);
 }
 
@@ -275,7 +275,7 @@ button, .btn, a.btn {
   border-radius: var(--radius-lg);
   padding: 32px;
   box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-weak);
   transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s;
 }
  .question-card:hover {
@@ -317,7 +317,7 @@ button, .btn, a.btn {
   background: #f9fafb;
   padding: 24px;
   border-radius: var(--radius-md);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-weak);
 }
 
 /* Question code block styling */
@@ -373,7 +373,7 @@ button, .btn, a.btn {
   font-size: 13px;
   padding: 8px 14px;
   background: white;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-weak);
   color: var(--text-muted);
   box-shadow: var(--shadow-sm);
   border-radius: var(--radius-sm);
@@ -439,12 +439,12 @@ button, .btn, a.btn {
   font-size: 14px;
   border-radius: var(--radius-sm);
   overflow: hidden;
-  box-shadow: 0 0 0 1px var(--border);
+  box-shadow: 0 0 0 1px var(--border-weak);
 }
 .answer-box th, .answer-box td {
   padding: 14px 16px;
   text-align: left;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-weak);
 }
 .answer-box th { background: #f8fafc; font-weight: 600; color: #0f172a; }
 .answer-box tr:last-child td { border-bottom: none; }
@@ -494,7 +494,7 @@ button, .btn, a.btn {
 .form-group label { font-size: 14px; font-weight: 700; color: var(--text-main); }
 .input-brutal, .form-group input {
   padding: 14px 16px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-weak);
   border-radius: var(--radius-sm);
   font-size: 15px;
   transition: all 0.2s;
@@ -505,7 +505,7 @@ button, .btn, a.btn {
 }
 .input-brutal:focus, .form-group input:focus {
   outline: none; border-color: var(--primary); background: white;
-  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.15);
+  box-shadow: 0 0 0 4px rgba(255,107,53,0.12);
 }
 .form-group small { font-size: 13px; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
 .form-group small a { color: var(--primary); text-decoration: none; font-weight: 500; }
@@ -517,7 +517,7 @@ button, .btn, a.btn {
   padding: 16px; 
   border-radius: var(--radius-sm); 
   background: #f8fafc; 
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-weak);
   display: flex;
   align-items: center;
   gap: 8px;

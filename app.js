@@ -500,7 +500,10 @@ function renderStats() {
 function renderSettingsModal() {
   if (!state.settingsOpen) return '';
   // If user logged in, show account and sign out option
-  const userSection = state.currentUser ? `
+  const apiToggleChecked = state.useTurbo ? 'checked' : '';
+  const neonChecked = state.neonEnabled ? 'checked' : '';
+
+  const accountSection = state.currentUser ? `
     <div style="display:flex; flex-direction:column; gap:10px;">
       <div style="font-weight:700">Signed in as ${escapeHtml(state.currentUser.email)}</div>
       <div style="display:flex; gap:8px;"><button class="btn" onclick="signOut()">Sign out</button></div>
@@ -525,10 +528,42 @@ function renderSettingsModal() {
     <div class="modal-overlay" onclick="toggleSettings()"></div>
     <div class="modal card">
       <div class="modal-header">
-        <h2>Account</h2>
+        <h2>Settings</h2>
         <button class="btn btn-secondary" onclick="toggleSettings()" style="padding: 5px 10px;">X</button>
       </div>
-      ${userSection}
+      <form onsubmit="saveSettings(event)" style="display:flex; flex-direction: column; gap: 16px;">
+        <div class="form-group">
+          <label>OpenRouter API Key (Standard)</label>
+          <input type="password" name="apiKey" value="${state.apiKey || ''}" class="input-brutal" placeholder="sk-or-... (optional if Turbo enabled)">
+          <small>Get a free key from <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai</a></small>
+        </div>
+
+        <div class="form-group">
+          <label style="display:flex; align-items:center; gap:8px;">
+            <input type="checkbox" name="useTurbo" ${apiToggleChecked} style="width:auto; transform:scale(1.1);">
+            Enable Turbo Mode (Groq)
+          </label>
+        </div>
+
+        <div class="form-group" style="${state.useTurbo ? '' : 'opacity:0.7'}">
+          <label>Groq API Key</label>
+          <input type="password" name="groqKey" value="${state.groqKey || ''}" class="input-brutal" placeholder="gsk_...">
+        </div>
+
+        <div class="form-group">
+          <label style="display:flex; align-items:center; gap:8px;">
+            <input type="checkbox" name="useNeon" ${neonChecked} style="width:auto; transform:scale(1.1);">
+            Save answers to Neon DB (server-side)
+          </label>
+          <small style="color:var(--text-muted);">Server must have NEON_API environment variable set.</small>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width:100%">Save Settings</button>
+      </form>
+
+      <hr style="margin:18px 0; border:none; border-top:1px solid var(--border-weak);" />
+
+      ${accountSection}
     </div>
   `;
 }
@@ -553,7 +588,6 @@ function renderQuestionList() {
     </div>`;
   }
   
-  // Apply filters and search
   let processedQs = currentSub.questions.map((q, idx) => {
       const text = typeof q === 'object' ? q.text : q;
       const isAnswered = !!currentSub.answers[text];
@@ -565,6 +599,16 @@ function renderQuestionList() {
           answer: currentSub.answers[text]
       };
   });
+
+  // Apply year filter (after processedQs is available)
+  if (state.selectedYear && state.selectedYear !== 'all') {
+      const sel = state.selectedYear;
+      processedQs = processedQs.filter(q => {
+          const y = getYearForQuestion(q.text) || 'unknown';
+          if (sel === 'unknown') return !y || y === 'unknown';
+          return String(y) === String(sel);
+      });
+  }
   
   if (state.filter === 'answered') {
       processedQs = processedQs.filter(q => q.isAnswered);
@@ -704,7 +748,13 @@ function render() {
           </div>
       </div>
 
-      <!-- Year filters removed per UX request -->
+      <div style="margin:16px 0 24px; display:flex; gap:8px; flex-wrap:wrap;">
+        ${getYearsForSubject(state.activeSubject).map(y => {
+          const label = String(y) === 'unknown' ? 'No Year' : String(y);
+          const sel = String(state.selectedYear || 'all');
+          return `<button class="year-pill ${sel === String(y) ? 'active' : ''}" onclick="setYearFilter('${y}')">${label}</button>`;
+        }).join('')}
+      </div>
 
       <div class="controls-bar">
          <div class="search-wrap">
