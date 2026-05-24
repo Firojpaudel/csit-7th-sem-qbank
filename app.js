@@ -16,6 +16,7 @@ let state = {
   useTurbo: localStorage.getItem('use_turbo') === 'true',
   neonEnabled: localStorage.getItem('neon_enabled') === 'true',
   selectedYear: localStorage.getItem('selected_year') || 'all',
+  headerStatsOpen: false,
   subjects: {},
   activeSubject: 'advanced-java',
   filter: 'all', // all, answered, unanswered
@@ -23,6 +24,11 @@ let state = {
   isGeneratingAll: false,
   settingsOpen: false
 };
+
+function toggleStats() {
+  state.headerStatsOpen = !state.headerStatsOpen;
+  render();
+}
 
 // Utilities for rendering
 function escapeHtml(str) {
@@ -421,13 +427,16 @@ function renderStats() {
     totalAns += ans;
   });
 
+  if (!state.headerStatsOpen) {
+    return `<button class="btn btn-outline" onclick="toggleStats()" aria-label="Show stats"><i class="ph-bold ph-list"></i></button>`;
+  }
+
   return `
-    <div class="stats-box">
+    <div class="stats-popover">
       <div><strong>TOTAL:</strong> ${totalQs}</div>
       <div><strong>DONE:</strong> ${totalAns}</div>
-      <div style="width: 100%; height: 8px; border: 2px solid var(--border); background: #eee; margin-top: 5px;">
-        <div style="width: ${totalQs ? (totalAns/totalQs)*100 : 0}%; height: 100%; background: var(--success);"></div>
-      </div>
+      <div class="stats-bar"><div class="stats-bar-fill" style="width: ${totalQs ? (totalAns/totalQs)*100 : 0}%"></div></div>
+      <div style="margin-top:8px; text-align:right;"><button class="btn" onclick="toggleStats()">Close</button></div>
     </div>
   `;
 }
@@ -534,8 +543,8 @@ function renderQuestionList() {
     const renderAiLinksHelper = () => {
       return `
         <div class="ai-links">
-                <a href="${aiPromptBuilder(q.text, 'chatgpt')}" target="_blank" class="btn btn-glow btn-chatgpt"><img src="assets/chatgpt.png" alt="ChatGPT" class="ai-logo"> ChatGPT</a>
-                <a href="${aiPromptBuilder(q.text, 'claude')}" target="_blank" class="btn btn-glow btn-claude"><img src="assets/claude-color.png" alt="Claude" class="ai-logo"> Claude</a>
+                <a href="${aiPromptBuilder(q.text, 'chatgpt')}" target="_blank" class="btn btn-glow btn-chatgpt" title="Ask ChatGPT"><img src="assets/chatgpt.png" alt="ChatGPT" class="ai-logo"> Ask ChatGPT</a>
+                <a href="${aiPromptBuilder(q.text, 'claude')}" target="_blank" class="btn btn-glow btn-claude" title="Ask Claude"><img src="assets/claude-color.png" alt="Claude" class="ai-logo"> Ask Claude</a>
         </div>
       `;
     };
@@ -620,9 +629,14 @@ function render() {
             <p class="subtitle" style="margin:4px 0 0;">Curated exam questions with AI-assisted answers</p>
           </div>
         </div>
-        <div class="header-controls">
+          <div class="header-controls">
           ${renderStats()}
-          <button class="btn btn-primary" onclick="toggleSettings()">Settings</button>
+          <button class="btn btn-ghost" onclick="toggleSettings()" aria-label="Settings" title="Settings">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+              <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06A2 2 0 1 1 2.3 16.88l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H2a2 2 0 1 1 0-4h.09c.7 0 1.29-.4 1.51-1a1.65 1.65 0 0 0-.33-1.82L3.36 3.7A2 2 0 1 1 6.19.87l.06.06A1.65 1.65 0 0 0 8.07 1.26c.33.22.73.34 1.14.34h.04c.04 0 .08 0 .12-.01.05 0 .09-.01.14-.02A1.65 1.65 0 0 0 11.5 1.6V2a2 2 0 1 1 4 0v.09c.03.43.19.84.48 1.18.14.17.3.33.48.46.39.27.8.35 1.16.35.41 0 .82-.12 1.15-.35.4-.27.75-.6 1.03-1.01.28-.4.56-.84.86-1.15A2 2 0 1 1 21.7 7.12c-.28.31-.58.62-.9.91-.32.3-.68.53-1.07.69-.38.17-.77.25-1.17.25-.37 0-.73-.08-1.06-.24-.42-.2-.8-.44-1.16-.73-.37-.29-.69-.63-.98-1.02A1.65 1.65 0 0 0 12 7.5v.09a1.65 1.65 0 0 0 1 1.51c.33.22.73.34 1.14.34h.04c.04 0 .08 0 .12-.01.05 0 .09-.01.14-.02c.41-.02.81.12 1.13.39.6.55 1.24 1.07 1.91 1.54z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
         </div>
       </div>
     </header>
