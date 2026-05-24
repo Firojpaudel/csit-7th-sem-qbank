@@ -16,7 +16,8 @@ let state = {
   useTurbo: localStorage.getItem('use_turbo') === 'true',
   neonEnabled: localStorage.getItem('neon_enabled') === 'true',
   selectedYear: localStorage.getItem('selected_year') || 'all',
-  headerStatsOpen: false,
+  sessionToken: localStorage.getItem('session_token') || '',
+  currentUser: null,
   subjects: {},
   activeSubject: 'advanced-java',
   filter: 'all', // all, answered, unanswered
@@ -25,9 +26,22 @@ let state = {
   settingsOpen: false
 };
 
-function toggleStats() {
-  state.headerStatsOpen = !state.headerStatsOpen;
+function setCurrentUser(user) {
+  state.currentUser = user || null;
   render();
+}
+
+async function fetchMe() {
+  const token = state.sessionToken;
+  if (!token) return setCurrentUser(null);
+  try {
+    const resp = await fetch('/me', { headers: { 'Authorization': `Bearer ${token}` } });
+    if (!resp.ok) { setCurrentUser(null); return; }
+    const data = await resp.json();
+    setCurrentUser(data.user);
+  } catch (e) {
+    setCurrentUser(null);
+  }
 }
 
 // Utilities for rendering
@@ -188,6 +202,7 @@ async function init() {
 
   loadDataFromDB();
   setupEventListeners();
+  await fetchMe();
   render();
 }
 
@@ -309,6 +324,45 @@ function saveSettings(e) {
   toggleSettings();
 }
 
+async function handleSignIn(e) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const email = fd.get('email').trim();
+  const password = fd.get('password');
+  try {
+    const resp = await fetch('/signin', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email, password }) });
+    if (!resp.ok) return alert('Sign in failed');
+    const data = await resp.json();
+    state.sessionToken = data.token;
+    localStorage.setItem('session_token', data.token);
+    await fetchMe();
+    toggleSettings();
+  } catch (e) { alert('Sign in failed'); }
+}
+
+async function handleSignUp(e) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const email = fd.get('email').trim();
+  const password = fd.get('password');
+  try {
+    const resp = await fetch('/signup', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email, password }) });
+    if (!resp.ok) { const err = await resp.json().catch(()=>({})); return alert(err.error || 'Sign up failed'); }
+    const data = await resp.json();
+    state.sessionToken = data.token;
+    localStorage.setItem('session_token', data.token);
+    await fetchMe();
+    toggleSettings();
+  } catch (e) { alert('Sign up failed'); }
+}
+
+function signOut() {
+  state.sessionToken = '';
+  localStorage.removeItem('session_token');
+  setCurrentUser(null);
+  render();
+}
+
 function toggleAnswer(subjectId, questionIndex) {
   const qState = state.subjects[subjectId].questions[questionIndex];
   qState.expanded = !qState.expanded;
@@ -356,9 +410,11 @@ async function handleGenerateAnswer(subjectId, questionIndex) {
 // Send an answer to the backend Neon service
 async function sendToNeon(subjectId, questionText, answerText) {
   try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (state.sessionToken) headers['Authorization'] = `Bearer ${state.sessionToken}`;
     await fetch('/saveAnswer', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ subject: subjectId, question: questionText, answer: answerText })
     });
   } catch (e) {
@@ -443,46 +499,36 @@ function renderStats() {
 
 function renderSettingsModal() {
   if (!state.settingsOpen) return '';
+  // If user logged in, show account and sign out option
+  const userSection = state.currentUser ? `
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <div style="font-weight:700">Signed in as ${escapeHtml(state.currentUser.email)}</div>
+      <div style="display:flex; gap:8px;"><button class="btn" onclick="signOut()">Sign out</button></div>
+    </div>
+  ` : `
+    <div style="display:flex; gap:12px; flex-direction:column;">
+      <form onsubmit="handleSignIn(event)">
+        <div class="form-group"><label>Email</label><input name="email" class="input-brutal" required></div>
+        <div class="form-group"><label>Password</label><input name="password" type="password" class="input-brutal" required></div>
+        <div style="display:flex; gap:8px;"><button class="btn btn-primary" type="submit">Sign in</button></div>
+      </form>
+      <hr />
+      <form onsubmit="handleSignUp(event)">
+        <div class="form-group"><label>Email</label><input name="email" class="input-brutal" required></div>
+        <div class="form-group"><label>Password</label><input name="password" type="password" class="input-brutal" required></div>
+        <div style="display:flex; gap:8px;"><button class="btn" type="submit">Sign up</button></div>
+      </form>
+    </div>
+  `;
+
   return `
     <div class="modal-overlay" onclick="toggleSettings()"></div>
     <div class="modal card">
       <div class="modal-header">
-        <h2>Settings</h2>
+        <h2>Account</h2>
         <button class="btn btn-secondary" onclick="toggleSettings()" style="padding: 5px 10px;">X</button>
       </div>
-      <form onsubmit="saveSettings(event)" style="display:flex; flex-direction: column; gap: 15px;">
-        <div class="form-group">
-          <label>OpenRouter API Key (Standard)</label>
-          <input type="password" name="apiKey" value="${state.apiKey}" class="input-brutal" placeholder="sk-or-... (optional if Turbo enabled)">
-          <small>Get a free key from <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai</a></small>
-        </div>
-        
-        <div class="form-group">
-          <label style="display:flex; align-items:center; gap:8px;">
-            <input type="checkbox" name="useTurbo" ${state.useTurbo ? 'checked' : ''} style="width:auto; transform:scale(1.2);">
-            Enable Turbo Mode 🚀 (Groq)
-          </label>
-        </div>
-        
-        <div class="form-group" style="${state.useTurbo ? '' : 'opacity:0.5'}">
-          <label>Groq API Key</label>
-          <input type="password" name="groqKey" value="${state.groqKey}" class="input-brutal" placeholder="gsk_...">
-        </div>
-
-        <div class="form-group">
-          <label style="display:flex; align-items:center; gap:8px;">
-            <input type="checkbox" name="useNeon" ${state.neonEnabled ? 'checked' : ''} style="width:auto; transform:scale(1.1);">
-            Save answers to Neon DB (server-side)
-          </label>
-          <small style="color:var(--text-muted);">The Neon connection string must be configured on the server in the environment.</small>
-        </div>
-
-        <div class="status-indicator">
-          Mode: ${state.useTurbo ? '<span style="color:#d946ef">Turbo Enabled</span>' : '<span style="color:var(--primary)">Standard Enabled</span>'}
-          ${state.neonEnabled ? '<div style="margin-top:8px; font-size:13px; color:var(--text-muted);">Neon: Enabled (server)</div>' : ''}
-        </div>
-        <button type="submit" class="btn btn-primary" style="width:100%">Save Settings</button>
-      </form>
+      ${userSection}
     </div>
   `;
 }

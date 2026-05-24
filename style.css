@@ -363,7 +363,7 @@ button, .btn, a.btn {
 .btn-claude:hover { box-shadow: 0 8px 40px rgba(249,115,22,0.14); }
 .btn-claude:hover { border: 1px solid; border-image: linear-gradient(45deg,#f43f5e,#f97316,#facc15,#34d399,#06b6d4) 1; }
 
-.btn-outline { background: transparent; border: 1px solid var(--border); }
+.btn-outline { background: transparent; border: 1px solid var(--border-weak); box-shadow: none; }
 
 .status-badge { display: inline-flex; align-items: center; gap:8px; padding-left:10px; padding-right:10px; }
 
@@ -465,12 +465,14 @@ button, .btn, a.btn {
   transform: translate(-50%, -50%);
   width: 90%;
   max-width: 480px;
-  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  background: rgba(255,255,255,0.66);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border-radius: 14px;
   padding: 28px;
   z-index: 1001;
-  box-shadow: var(--shadow-float);
-  border: 1px solid rgba(2,6,23,0.04);
+  box-shadow: 0 8px 30px rgba(var(--shadow-color),0.06);
+  border: 1px solid rgba(255,255,255,0.6);
   animation: modalIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
