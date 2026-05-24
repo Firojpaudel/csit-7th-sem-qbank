@@ -58,12 +58,45 @@ function getYearsForSubject(subId) {
   const years = new Set();
   years.add('all');
   years.add('unknown');
+  const yearRegex = /\b(19|20)\d{2}\b/g;
   for (const q of qs) {
     const text = typeof q === 'object' ? q.text : q;
     const y = map[text];
-    if (y) years.add(y);
+    if (y) {
+      years.add(y);
+      continue;
+    }
+    // attempt to auto-detect year in text
+    const found = text.match(yearRegex);
+    if (found && found.length) {
+      // take first match
+      years.add(found[0]);
+      // persist detection so UI remembers it
+      map[text] = found[0];
+    }
   }
+  // save any auto-detected years into map
+  saveYearMap(map);
   return Array.from(years);
+}
+
+// Auto-tag all questions in a subject by scanning for year patterns (e.g. 2022)
+function autoTagYearsForSubject(subId) {
+  const qs = state.subjects[subId].questions || [];
+  const map = loadYearMap();
+  const yearRegex = /\b(19|20)\d{2}\b/g;
+  let changed = false;
+  for (const q of qs) {
+    const text = typeof q === 'object' ? q.text : q;
+    if (map[text]) continue;
+    const found = text.match(yearRegex);
+    if (found && found.length) {
+      map[text] = found[0];
+      changed = true;
+    }
+  }
+  if (changed) saveYearMap(map);
+  render();
 }
 
 function setYearFilter(year) {
@@ -596,6 +629,7 @@ function render() {
               ${state.isGeneratingAll ? '<i class="ph-bold ph-spinner ph-spin"></i> Generating...' : '<i class="ph-bold ph-lightning"></i> Generate All Missing'}
             </button>
             <button class="btn btn-primary btn-glow" onclick="window.print()"><i class="ph-bold ph-printer"></i> Export PDF</button>
+               <button class="btn btn-secondary" onclick="autoTagYearsForSubject('${state.activeSubject}')" title="Auto-detect years in questions">Auto-detect Years</button>
           </div>
       </div>
 
