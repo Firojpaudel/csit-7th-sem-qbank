@@ -963,9 +963,9 @@ function renderQuestionList() {
   }
 
   return processedQs.map((q, displayIdx) => {
-    const badgeHtml = q.isAnswered 
+    const badgeHtml = state.currentUser ? (q.isAnswered 
       ? '<span class="status-badge badge-answered"><i class="ph-bold ph-check-circle"></i> ANSWERED</span>'
-      : '<span class="status-badge badge-unanswered"><i class="ph-bold ph-clock"></i> UNANSWERED</span>';
+      : '<span class="status-badge badge-unanswered"><i class="ph-bold ph-clock"></i> UNANSWERED</span>') : '';
 
     const yearVal = q.obj.year || getYearForQuestion(q.text) || 'Unknown';
     const typeVal = q.obj.type || 'General Questions';
