@@ -534,8 +534,8 @@ function renderQuestionList() {
     const renderAiLinksHelper = () => {
       return `
         <div class="ai-links">
-          <a href="${aiPromptBuilder(q.text, 'chatgpt')}" target="_blank" class="btn btn-glow btn-chatgpt"><img src="assets/chatgpt.svg" alt="ChatGPT" class="ai-logo"> ChatGPT</a>
-          <a href="${aiPromptBuilder(q.text, 'claude')}" target="_blank" class="btn btn-glow btn-claude"><img src="assets/claude.svg" alt="Claude" class="ai-logo"> Claude</a>
+                <a href="${aiPromptBuilder(q.text, 'chatgpt')}" target="_blank" class="btn btn-glow btn-chatgpt"><img src="assets/chatgpt.png" alt="ChatGPT" class="ai-logo"> ChatGPT</a>
+                <a href="${aiPromptBuilder(q.text, 'claude')}" target="_blank" class="btn btn-glow btn-claude"><img src="assets/claude-color.png" alt="Claude" class="ai-logo"> Claude</a>
         </div>
       `;
     };

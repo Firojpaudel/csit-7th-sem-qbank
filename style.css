@@ -181,9 +181,11 @@ button, .btn, a.btn {
 .btn-secondary[title] { position: relative; }
 
 /* AI logo buttons */
-.ai-logo { width: 18px; height: 18px; margin-right: 8px; vertical-align: middle; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.08)); }
-.btn-chatgpt:hover .ai-logo { transform: translateY(-2px); }
-.btn-claude:hover .ai-logo { transform: translateY(-2px); }
+.ai-logo { width: 20px; height: 20px; margin-right: 8px; vertical-align: middle; background: white; padding: 3px; border-radius: 6px; box-shadow: 0 6px 18px rgba(2,6,23,0.08); transition: transform .18s ease, box-shadow .18s ease; }
+.btn-chatgpt .ai-logo { border-radius: 6px; }
+.btn-claude .ai-logo { border-radius: 6px; }
+.btn-chatgpt:hover .ai-logo { transform: translateY(-3px) scale(1.03); box-shadow: 0 10px 30px rgba(34,197,94,0.12); }
+.btn-claude:hover .ai-logo { transform: translateY(-3px) scale(1.03); box-shadow: 0 10px 30px rgba(249,115,22,0.12); }
 
 /* Subject Header */
 .subject-header {
