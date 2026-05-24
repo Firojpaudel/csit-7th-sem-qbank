@@ -528,20 +528,23 @@ function render() {
           <h2>${currentSub.title}</h2>
           <p class="stats-text">${totalQs} Questions • ${answeredQs} Answered</p>
         </div>
-        <div style="display: flex; gap: 10px;">
-           <button class="btn btn-primary" onclick="handleGenerateAll('${state.activeSubject}')" ${state.isGeneratingAll ? 'disabled' : ''}>
-              ${state.isGeneratingAll ? 'Generating...' : '⚡ Generate All Missing'}
-           </button>
-           <button class="btn btn-primary" onclick="window.print()">🖨 Export PDF</button>
-        </div>
+          <div style="display: flex; gap: 10px; align-items:center;">
+            <button class="btn btn-primary btn-glow" onclick="handleGenerateAll('${state.activeSubject}')" ${state.isGeneratingAll ? 'disabled' : ''}>
+              ${state.isGeneratingAll ? '<i class="ph-bold ph-spinner ph-spin"></i> Generating...' : '<i class="ph-bold ph-lightning"></i> Generate All Missing'}
+            </button>
+            <button class="btn btn-primary btn-glow" onclick="window.print()"><i class="ph-bold ph-printer"></i> Export PDF</button>
+          </div>
       </div>
 
       <div class="controls-bar">
-        <input type="text" 
-               class="search-bar input-brutal" 
-               placeholder="🔍 Search questions..." 
-               value="${state.search}"
-               oninput="setSearch(this.value)">
+         <div class="search-wrap">
+           <i class="ph-bold ph-magnifying-glass search-icon"></i>
+           <input type="text" 
+           class="search-bar input-brutal" 
+           placeholder="Search questions..." 
+           value="${state.search}"
+           oninput="setSearch(this.value)">
+         </div>
                
         <div class="filters">
           <button class="filter-btn ${state.filter === 'all' ? 'active' : ''}" onclick="setFilter('all')">All</button>
