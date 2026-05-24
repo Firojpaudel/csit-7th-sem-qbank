@@ -131,6 +131,14 @@ function isCodeLike(text) {
 
 function renderQuestionContent(text) {
   if (!text) return '';
+  // clean trailing separator lines like '---' or '...' to avoid ugly triples
+  function cleanQuestionText(t) {
+    const lines = String(t).split('\n');
+    while (lines.length && /^\s*[-._]{2,}\s*$/.test(lines[lines.length-1])) lines.pop();
+    while (lines.length && /^\s*\.\.\.\s*$/.test(lines[lines.length-1])) lines.pop();
+    return lines.join('\n').trim();
+  }
+  text = cleanQuestionText(text);
   if (isCodeLike(text)) {
     const escaped = escapeHtml(text);
     // try to guess language (Java common in this dataset)
@@ -509,14 +517,6 @@ function renderQuestionList() {
       processedQs = processedQs.filter(q => !q.isAnswered);
   }
   
-  // Year filtering
-  if (state.selectedYear && state.selectedYear !== 'all') {
-    processedQs = processedQs.filter(q => {
-      const y = getYearForQuestion(q.text);
-      if (state.selectedYear === 'unknown') return y === 'unknown';
-      return y === state.selectedYear;
-    });
-  }
 
   if (state.search) {
       processedQs = processedQs.filter(q => q.text.toLowerCase().includes(state.search));
@@ -551,7 +551,6 @@ function renderQuestionList() {
           ${q.obj.expanded ? '<i class="ph-bold ph-caret-up"></i> Hide Answer' : '<i class="ph-bold ph-caret-down"></i> Show Answer'}
         </button>
         <button class="btn" onclick="handleGenerateAnswer('${state.activeSubject}', ${q.originalIdx})"><i class="ph-bold ph-arrows-clockwise"></i> Regenerate</button>
-        <button class="btn btn-secondary" onclick="assignYear('${state.activeSubject}', ${q.originalIdx})">Tag Year</button>
         ${renderAiLinksHelper()}
       `;
       
@@ -571,7 +570,6 @@ function renderQuestionList() {
     } else {
       actionsHtml = `
           <button class="btn btn-primary" onclick="handleGenerateAnswer('${state.activeSubject}', ${q.originalIdx})"><i class="ph-bold ph-sparkle"></i> Generate Answer</button>
-          <button class="btn btn-secondary" onclick="assignYear('${state.activeSubject}', ${q.originalIdx})">Tag Year</button>
           ${renderAiLinksHelper()}
       `;
     }
@@ -646,15 +644,10 @@ function render() {
               ${state.isGeneratingAll ? '<i class="ph-bold ph-spinner ph-spin"></i> Generating...' : '<i class="ph-bold ph-lightning"></i> Generate All Missing'}
             </button>
             <button class="btn btn-primary btn-glow" onclick="window.print()"><i class="ph-bold ph-printer"></i> Export PDF</button>
-               <button class="btn btn-secondary" onclick="autoTagYearsForSubject('${state.activeSubject}')" title="Auto-detect years in questions">Auto-detect Years</button>
           </div>
       </div>
 
-      <div style="margin-bottom:18px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
-        ${getYearsForSubject(state.activeSubject).map(y => `
-          <button class="filter-btn ${state.selectedYear === y ? 'active' : ''}" onclick="setYearFilter('${y}')">${y === 'all' ? 'All Years' : (y === 'unknown' ? 'Unassigned' : y)}</button>
-        `).join('')}
-      </div>
+      <!-- Year filters removed per UX request -->
 
       <div class="controls-bar">
          <div class="search-wrap">

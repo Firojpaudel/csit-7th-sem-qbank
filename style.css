@@ -104,16 +104,16 @@ button, .btn, a.btn {
 
 /* Header Glassmorphism */
 .header {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-radius: var(--radius-lg);
-  padding: 24px 32px;
-  margin-bottom: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  box-shadow: var(--shadow-md);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 14px;
+  padding: 12px 18px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-sm);
   position: sticky;
-  top: 20px;
+  top: 12px;
   z-index: 100;
 }
 .header-content { display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; }
@@ -210,10 +210,10 @@ button, .btn, a.btn {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 12px 20px;
-  font-size: 14px;
+  font-size: 15px;
   font-family: inherit;
   width: 100%;
-  max-width: 340px;
+  max-width: none;
   background: white;
   color: var(--text-main);
   outline: none;
@@ -235,9 +235,9 @@ button, .btn, a.btn {
   box-shadow: var(--shadow-sm);
 }
 
-.search-wrap { position: relative; display: inline-flex; align-items: center; }
+.search-wrap { position: relative; display: flex; align-items: center; flex: 1 1 420px; }
 .search-icon { position: absolute; left: 12px; color: var(--text-muted); font-size: 1.05rem; pointer-events: none; }
-.search-wrap .search-bar { padding-left: 40px; }
+.search-wrap .search-bar { padding-left: 44px; }
 
 .btn-glow { transition: transform 0.18s ease, box-shadow 0.18s ease; }
 .btn-glow:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(79,70,229,0.12); }
@@ -462,12 +462,12 @@ button, .btn, a.btn {
   transform: translate(-50%, -50%);
   width: 90%;
   max-width: 480px;
-  background: var(--card-bg);
-  border-radius: var(--radius-lg);
-  padding: 40px;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  border-radius: 14px;
+  padding: 28px;
   z-index: 1001;
   box-shadow: var(--shadow-float);
-  border: 1px solid rgba(255,255,255,0.4);
+  border: 1px solid rgba(2,6,23,0.04);
   animation: modalIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -540,4 +540,24 @@ button, .btn, a.btn {
   .app { padding: 0; max-width: 100%; }
   .question-card { box-shadow: none; border: none; border-bottom: 1px solid #e5e7eb; border-radius: 0; padding: 32px 0; }
   .answer-box { border: none; background: white; padding: 0; margin-top: 24px; box-shadow: none; }
+}
+
+/* Responsive tweaks */
+@media (max-width: 900px) {
+  .app { padding: 24px 12px; }
+  .tabs { overflow-x: auto; gap: 8px; }
+  .tab { padding: 8px 14px; }
+  .header { padding: 10px 12px; }
+  .question-card { padding: 20px; }
+  .modal { width: 95%; padding: 20px; }
+}
+
+@media (max-width: 520px) {
+  .header-content { gap: 10px; }
+  .header { top: 8px; }
+  .search-wrap { flex: 1 1 auto; }
+  .filters { display: none; }
+  .question-text { padding: 14px; }
+  .question-card { padding: 16px; }
+  .btn { padding: 8px 10px; font-size: 13px; }
 }
