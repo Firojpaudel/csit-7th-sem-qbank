@@ -22,9 +22,9 @@
   --primary-hover: #e05a2b;
   --danger: #ef4444;
   --border-weak: rgba(26,26,26,0.06);
-  --shadow-sm: 0 4px 10px rgba(var(--shadow-color),0.08);
-  --shadow-md: 0 10px 30px rgba(var(--shadow-color),0.12);
-  --shadow-lg: 0 18px 60px rgba(var(--shadow-color),0.16);
+  --shadow-sm: 0 2px 6px rgba(var(--shadow-color),0.06);
+  --shadow-md: 0 6px 18px rgba(var(--shadow-color),0.08);
+  --shadow-lg: 0 12px 36px rgba(var(--shadow-color),0.10);
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 14px;
@@ -112,17 +112,15 @@ button, .btn, a.btn {
 
 /* Header Glassmorphism */
 .header {
-  background: var(--card-bg);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-radius: 14px;
-  padding: 12px 18px;
-  margin-bottom: 16px;
-  border: 1px solid var(--border-weak);
-  box-shadow: var(--shadow-sm);
+  background: transparent;
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin-bottom: 10px;
+  border: none;
+  box-shadow: none;
   position: sticky;
-  top: 12px;
-  z-index: 100;
+  top: 8px;
+  z-index: 50;
 }
 .header-content { display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; }
 .header-controls { display: flex; align-items: center; gap: 16px; }
@@ -168,10 +166,9 @@ button, .btn, a.btn {
   box-shadow: var(--shadow-md);
 }
 .tab.active {
-  background: linear-gradient(90deg, var(--primary), #e85b2a);
+  background: var(--primary);
   color: white;
-  border-color: rgba(0,0,0,0.06);
-  box-shadow: var(--shadow-md);
+  border-color: transparent;
 }
 
 .year-pill { padding: 8px 14px; border-radius: 999px; background: white; border:1px solid var(--border); box-shadow: var(--shadow-sm); font-weight:600; }
@@ -182,8 +179,8 @@ button, .btn, a.btn {
 .ai-logo { width: 20px; height: 20px; margin-right: 8px; vertical-align: middle; background: white; padding: 3px; border-radius: 6px; box-shadow: 0 6px 18px rgba(var(--shadow-color),0.08); transition: transform .18s ease, box-shadow .18s ease; }
 .btn-chatgpt .ai-logo { border-radius: 6px; }
 .btn-claude .ai-logo { border-radius: 6px; }
-.btn-chatgpt:hover .ai-logo { transform: translateY(-3px) scale(1.03); box-shadow: 0 10px 30px rgba(34,197,94,0.12); }
-.btn-claude:hover .ai-logo { transform: translateY(-3px) scale(1.03); box-shadow: 0 10px 30px rgba(249,115,22,0.12); }
+.btn-chatgpt:hover .ai-logo { transform: translateY(-2px); }
+.btn-claude:hover .ai-logo { transform: translateY(-2px); }
 
 /* Subject Header */
 .subject-header {
@@ -281,10 +278,10 @@ button, .btn, a.btn {
   border: 1px solid var(--border);
   transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s;
 }
-.question-card:hover {
-  box-shadow: var(--shadow-lg);
-  transform: translateY(-2px);
-  border-color: #d1d5db;
+ .question-card:hover {
+   box-shadow: var(--shadow-sm);
+   transform: translateY(-1px);
+   border-color: #d1d5db;
 }
 .question-header {
   display: flex;
@@ -356,8 +353,8 @@ button, .btn, a.btn {
   box-shadow: 0 8px 30px rgba(2,132,199,0.12);
 }
 .btn-chatgpt { background: linear-gradient(90deg,#0ea5e9,#0284c7); color: white; border: none; }
-.btn-claude { background: linear-gradient(90deg,#06b6d4,#f97316); color: white; border: none; }
-
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
 .btn-ghost { background: transparent; border: none; padding: 8px; color: var(--text-secondary); }
 .btn-ghost:hover { color: var(--text-primary); background: rgba(var(--shadow-color),0.03); }
 
