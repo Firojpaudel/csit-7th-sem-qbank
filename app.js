@@ -23,7 +23,8 @@ let state = {
   filter: 'all', // all, answered, unanswered
   search: '',
   isGeneratingAll: false,
-  settingsOpen: false
+  settingsOpen: false,
+  authMode: 'signin'
 };
 
 function setCurrentUser(user) {
@@ -323,6 +324,18 @@ function toggleSettings() {
   render();
 }
 
+function openAuthMode(mode) {
+  state.authMode = mode;
+  state.settingsOpen = true;
+  render();
+}
+
+function setAuthMode(mode) {
+  state.authMode = mode;
+  state.settingsOpen = true;
+  render();
+}
+
 function saveSettings(e) {
   e.preventDefault();
   const formData = new FormData(e.target);
@@ -528,27 +541,38 @@ function renderStats() {
 function renderSettingsModal() {
   if (!state.settingsOpen) return '';
   if (!state.currentUser) {
+    const isSignIn = state.authMode !== 'signup';
     return `
       <div class="modal-overlay" onclick="toggleSettings()"></div>
       <div class="modal card">
         <div class="modal-header">
-          <h2>Sign in</h2>
+          <h2>${isSignIn ? 'Sign in' : 'Sign up'}</h2>
           <button class="btn btn-secondary" onclick="toggleSettings()" style="padding: 5px 10px;">X</button>
         </div>
-        <p style="color:var(--text-muted); margin-bottom:16px;">Create an account or sign in first. After that, you can save your API keys and answers to your own account.</p>
-        <div style="display:flex; gap:12px; flex-direction:column;">
-          <form onsubmit="handleSignIn(event)">
-            <div class="form-group"><label>Email</label><input name="email" class="input-brutal" required></div>
-            <div class="form-group"><label>Password</label><input name="password" type="password" class="input-brutal" required></div>
-            <div style="display:flex; gap:8px;"><button class="btn btn-primary" type="submit">Sign in</button></div>
-          </form>
-          <hr style="border:none; border-top:1px solid var(--border-weak); margin: 0;" />
-          <form onsubmit="handleSignUp(event)">
-            <div class="form-group"><label>Email</label><input name="email" class="input-brutal" required></div>
-            <div class="form-group"><label>Password</label><input name="password" type="password" class="input-brutal" required></div>
-            <div style="display:flex; gap:8px;"><button class="btn" type="submit">Sign up</button></div>
-          </form>
-        </div>
+        <p style="color:var(--text-muted); margin-bottom:16px;">${isSignIn ? 'Use your existing account to continue.' : 'Create an account so you can save answers and store your API keys per user.'}</p>
+        ${isSignIn ? `
+          <div style="display:flex; gap:12px; flex-direction:column;">
+            <form onsubmit="handleSignIn(event)">
+              <div class="form-group"><label>Email</label><input name="email" class="input-brutal" required></div>
+              <div class="form-group"><label>Password</label><input name="password" type="password" class="input-brutal" required></div>
+              <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <button class="btn btn-primary" type="submit">Sign in</button>
+                <button class="btn" type="button" onclick="setAuthMode('signup')">Create account</button>
+              </div>
+            </form>
+          </div>
+        ` : `
+          <div style="display:flex; gap:12px; flex-direction:column;">
+            <form onsubmit="handleSignUp(event)">
+              <div class="form-group"><label>Email</label><input name="email" class="input-brutal" required></div>
+              <div class="form-group"><label>Password</label><input name="password" type="password" class="input-brutal" required></div>
+              <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <button class="btn btn-primary" type="submit">Sign up</button>
+                <button class="btn" type="button" onclick="setAuthMode('signin')">I already have an account</button>
+              </div>
+            </form>
+          </div>
+        `}
       </div>
     `;
   }
@@ -754,7 +778,8 @@ function render() {
             <li>Save: answers are stored per-user in the Neon DB configured on the server.</li>
           </ul>
           <div style="display:flex; gap:12px; margin-top:8px;">
-            <button class="btn btn-primary" onclick="toggleSettings()">Sign in / Sign up</button>
+            <button class="btn btn-primary" onclick="openAuthMode('signin')">Sign in</button>
+            <button class="btn" onclick="openAuthMode('signup')">Sign up</button>
           </div>
         </div>
       </div>
