@@ -627,6 +627,7 @@ function signOut() {
   state.neonStatus = 'unconfigured';
   state.settingsOpen = true;
   state.authMode = 'signin';
+  state.filter = 'all';
   render();
 }
 
@@ -1118,6 +1119,7 @@ function render() {
           </div>
         </div>
 
+        ${state.currentUser ? `
         <div class="sidebar-section quick-stats-card">
           <h3>Quick Stats</h3>
           <div class="stats-grid">
@@ -1135,13 +1137,14 @@ function render() {
           </div>
           <span class="progress-pct">${totalQs ? Math.round((answeredQs / totalQs) * 100) : 0}% Mastered</span>
         </div>
+        ` : ''}
       </aside>
 
       <main class="content-panel">
         <div class="subject-header">
           <div>
             <h2>${currentSub.title}</h2>
-            <p class="stats-text">${totalQs} Questions • ${answeredQs} Answered</p>
+            <p class="stats-text">${totalQs} Questions${state.currentUser ? ` • ${answeredQs} Answered` : ''}</p>
           </div>
           <div style="display: flex; gap: 10px; align-items:center; flex-wrap:wrap;">
             <button class="btn btn-primary btn-glow" onclick="handleGenerateAll('${state.activeSubject}')" ${state.isGeneratingAll ? 'disabled' : ''}>
@@ -1172,11 +1175,13 @@ function render() {
             oninput="setSearch(this.value)">
           </div>
                  
+          ${state.currentUser ? `
           <div class="filters">
             <button class="filter-btn ${state.filter === 'all' ? 'active' : ''}" onclick="setFilter('all')">All</button>
             <button class="filter-btn ${state.filter === 'unanswered' ? 'active' : ''}" onclick="setFilter('unanswered')">Unanswered</button>
             <button class="filter-btn ${state.filter === 'answered' ? 'active' : ''}" onclick="setFilter('answered')">Answered <span>${answeredQs}</span></button>
           </div>
+          ` : ''}
         </div>
 
         <div class="question-list">
