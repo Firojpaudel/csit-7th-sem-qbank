@@ -9,6 +9,9 @@ const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_MODEL = 'llama-3.3-70b-versatile';
 const MODEL = 'openrouter/free';
+const API_BASE = localStorage.getItem('api_base') || (window.location.hostname.includes('.app.github.dev')
+  ? window.location.origin.replace('-5500.', '-3000.')
+  : 'http://localhost:3000');
 
 let state = {
   apiKey: localStorage.getItem('or_api_key') || '',
@@ -36,7 +39,7 @@ async function fetchMe() {
   const token = state.sessionToken;
   if (!token) return setCurrentUser(null);
   try {
-    const resp = await fetch('/me', { headers: { 'Authorization': `Bearer ${token}` } });
+    const resp = await fetch(`${API_BASE}/me`, { headers: { 'Authorization': `Bearer ${token}` } });
     if (!resp.ok) { setCurrentUser(null); return; }
     const data = await resp.json();
     setCurrentUser(data.user);
@@ -50,7 +53,7 @@ async function fetchMe() {
 async function fetchUserKeys() {
   if (!state.sessionToken) return;
   try {
-    const resp = await fetch('/me/keys', { headers: { 'Authorization': `Bearer ${state.sessionToken}` } });
+    const resp = await fetch(`${API_BASE}/me/keys`, { headers: { 'Authorization': `Bearer ${state.sessionToken}` } });
     if (!resp.ok) return;
     const data = await resp.json();
     state.userKeys = data || {};
@@ -59,7 +62,7 @@ async function fetchUserKeys() {
 
 async function saveUserKeys(apiKey, groqKey) {
   if (!state.sessionToken) throw new Error('Not signed in');
-  const resp = await fetch('/me/keys', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.sessionToken}` }, body: JSON.stringify({ apiKey, groqKey }) });
+  const resp = await fetch(`${API_BASE}/me/keys`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.sessionToken}` }, body: JSON.stringify({ apiKey, groqKey }) });
   if (!resp.ok) throw new Error('Could not save keys');
   await fetchUserKeys();
 }
@@ -371,8 +374,11 @@ async function handleSignIn(e) {
   const email = fd.get('email').trim();
   const password = fd.get('password');
   try {
-    const resp = await fetch('/signin', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email, password }) });
-    if (!resp.ok) return alert('Sign in failed');
+    const resp = await fetch(`${API_BASE}/signin`, { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email, password }) });
+    if (!resp.ok) {
+      const err = await resp.json().catch(()=>({}));
+      return alert(err.error || 'Sign in failed');
+    }
     const data = await resp.json();
     state.sessionToken = data.token;
     localStorage.setItem('session_token', data.token);
@@ -387,7 +393,7 @@ async function handleSignUp(e) {
   const email = fd.get('email').trim();
   const password = fd.get('password');
   try {
-    const resp = await fetch('/signup', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email, password }) });
+    const resp = await fetch(`${API_BASE}/signup`, { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email, password }) });
     if (!resp.ok) { const err = await resp.json().catch(()=>({})); return alert(err.error || 'Sign up failed'); }
     const data = await resp.json();
     state.sessionToken = data.token;
@@ -453,7 +459,7 @@ async function sendToNeon(subjectId, questionText, answerText) {
   try {
     const headers = { 'Content-Type': 'application/json' };
     if (state.sessionToken) headers['Authorization'] = `Bearer ${state.sessionToken}`;
-    await fetch('/saveAnswer', {
+    await fetch(`${API_BASE}/saveAnswer`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ subject: subjectId, question: questionText, answer: answerText })

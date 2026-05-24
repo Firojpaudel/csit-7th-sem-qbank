@@ -1,11 +1,41 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const { Pool } = require('pg');
+const fs = require('fs');
+const path = require('path');
+
+function loadDotEnv() {
+  const envPath = path.join(__dirname, '.env');
+  if (!fs.existsSync(envPath)) return;
+  const raw = fs.readFileSync(envPath, 'utf8');
+  raw.split(/\r?\n/).forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) return;
+    const idx = trimmed.indexOf('=');
+    if (idx === -1) return;
+    const key = trimmed.slice(0, idx).trim();
+    let value = trimmed.slice(idx + 1).trim();
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+    if (!process.env[key] && value) process.env[key] = value;
+  });
+}
+
+loadDotEnv();
 
 const app = express();
 app.use(bodyParser.json());
 
-const NEON = process.env.NEON_API; // set this on the server environment
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
+
+const NEON = process.env.NEON_API || process.env.DATABASE_URL || process.env.NEON_DATABASE_URL; // set this on the server environment
 if (!NEON) {
   console.warn('NEON_API not set in environment; /saveAnswer will return 503');
 }
@@ -88,7 +118,8 @@ app.post('/signup', async (req, res) => {
     return res.json({ ok: true, token: user.token, user: { id: user.id, email: user.email } });
   } catch (e) {
     console.error('Signup failed', e);
-    return res.status(500).json({ error: 'Signup failed or email exists' });
+    const detail = e && (e.detail || e.message) ? `: ${e.detail || e.message}` : '';
+    return res.status(500).json({ error: `Signup failed or email exists${detail}` });
   }
 });
 
