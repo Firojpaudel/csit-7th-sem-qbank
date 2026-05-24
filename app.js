@@ -527,28 +527,40 @@ function renderStats() {
 
 function renderSettingsModal() {
   if (!state.settingsOpen) return '';
-  // If user logged in, show account and sign out option
+  if (!state.currentUser) {
+    return `
+      <div class="modal-overlay" onclick="toggleSettings()"></div>
+      <div class="modal card">
+        <div class="modal-header">
+          <h2>Sign in</h2>
+          <button class="btn btn-secondary" onclick="toggleSettings()" style="padding: 5px 10px;">X</button>
+        </div>
+        <p style="color:var(--text-muted); margin-bottom:16px;">Create an account or sign in first. After that, you can save your API keys and answers to your own account.</p>
+        <div style="display:flex; gap:12px; flex-direction:column;">
+          <form onsubmit="handleSignIn(event)">
+            <div class="form-group"><label>Email</label><input name="email" class="input-brutal" required></div>
+            <div class="form-group"><label>Password</label><input name="password" type="password" class="input-brutal" required></div>
+            <div style="display:flex; gap:8px;"><button class="btn btn-primary" type="submit">Sign in</button></div>
+          </form>
+          <hr style="border:none; border-top:1px solid var(--border-weak); margin: 0;" />
+          <form onsubmit="handleSignUp(event)">
+            <div class="form-group"><label>Email</label><input name="email" class="input-brutal" required></div>
+            <div class="form-group"><label>Password</label><input name="password" type="password" class="input-brutal" required></div>
+            <div style="display:flex; gap:8px;"><button class="btn" type="submit">Sign up</button></div>
+          </form>
+        </div>
+      </div>
+    `;
+  }
+
+  // If user logged in, show account and API key settings
   const apiToggleChecked = state.useTurbo ? 'checked' : '';
   const neonChecked = state.neonEnabled ? 'checked' : '';
 
-  const accountSection = state.currentUser ? `
+  const accountSection = `
     <div style="display:flex; flex-direction:column; gap:10px;">
       <div style="font-weight:700">Signed in as ${escapeHtml(state.currentUser.email)}</div>
       <div style="display:flex; gap:8px;"><button class="btn" onclick="signOut()">Sign out</button></div>
-    </div>
-  ` : `
-    <div style="display:flex; gap:12px; flex-direction:column;">
-      <form onsubmit="handleSignIn(event)">
-        <div class="form-group"><label>Email</label><input name="email" class="input-brutal" required></div>
-        <div class="form-group"><label>Password</label><input name="password" type="password" class="input-brutal" required></div>
-        <div style="display:flex; gap:8px;"><button class="btn btn-primary" type="submit">Sign in</button></div>
-      </form>
-      <hr />
-      <form onsubmit="handleSignUp(event)">
-        <div class="form-group"><label>Email</label><input name="email" class="input-brutal" required></div>
-        <div class="form-group"><label>Password</label><input name="password" type="password" class="input-brutal" required></div>
-        <div style="display:flex; gap:8px;"><button class="btn" type="submit">Sign up</button></div>
-      </form>
     </div>
   `;
 
@@ -746,6 +758,7 @@ function render() {
           </div>
         </div>
       </div>
+      ${renderSettingsModal()}
     `;
     return;
   }
