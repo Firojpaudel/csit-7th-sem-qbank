@@ -3,23 +3,31 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700&display=swap');
 
 :root {
-  /* Minimalist, professional palette inspired by top-tier product design */
-  --bg-color: #f7f9fc;
-  --card-bg: #ffffff;
-  --text-main: #111827;
-  --text-muted: #6b7280;
-  --primary: #0ea5e9;
-  --primary-hover: #0478b5;
+  /* User-provided palette */
+  --background: #F5F0E8; /* warm off-white / cream */
+  --surface: #FFFFFF;    /* card surface */
+  --primary: #FF6B35;    /* bold orange */
+  --secondary: #FFD23F;  /* bright yellow */
+  --accent: #3D348B;     /* deep purple */
+  --success: #06D6A0;    /* teal green */
+  --text-primary: #1A1A1A;
+  --text-secondary: #4A4A4A;
+  --border: #1A1A1A;     /* thick black borders */
+  --shadow-color: 26,26,26; /* shadow rgb */
+
+  --bg-color: var(--background);
+  --card-bg: var(--surface);
+  --text-main: var(--text-primary);
+  --text-muted: var(--text-secondary);
+  --primary-hover: #e05a2b;
   --danger: #ef4444;
-  --success: #10b981;
-  --border: #e5e7eb;
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.03);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.03);
-  --shadow-float: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+  --border-weak: rgba(26,26,26,0.06);
+  --shadow-sm: 0 4px 10px rgba(var(--shadow-color),0.08);
+  --shadow-md: 0 10px 30px rgba(var(--shadow-color),0.12);
+  --shadow-lg: 0 18px 60px rgba(var(--shadow-color),0.16);
   --radius-sm: 8px;
   --radius-md: 12px;
-  --radius-lg: 16px;
+  --radius-lg: 14px;
   --max-width: 1040px;
 }
 
@@ -35,8 +43,8 @@ body {
 }
 
 ::selection {
-  background: rgba(79, 70, 229, 0.2);
-  color: var(--primary);
+  background: rgba(255,107,53,0.12);
+  color: var(--text-primary);
 }
 
 .app { 
@@ -104,13 +112,13 @@ button, .btn, a.btn {
 
 /* Header Glassmorphism */
 .header {
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--card-bg);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border-radius: 14px;
   padding: 12px 18px;
   margin-bottom: 16px;
-  border: 1px solid rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--border-weak);
   box-shadow: var(--shadow-sm);
   position: sticky;
   top: 12px;
@@ -160,10 +168,10 @@ button, .btn, a.btn {
   box-shadow: var(--shadow-md);
 }
 .tab.active {
-  background: var(--primary);
+  background: linear-gradient(90deg, var(--primary), #e85b2a);
   color: white;
-  border-color: var(--primary);
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+  border-color: rgba(0,0,0,0.06);
+  box-shadow: var(--shadow-md);
 }
 
 .year-pill { padding: 8px 14px; border-radius: 999px; background: white; border:1px solid var(--border); box-shadow: var(--shadow-sm); font-weight:600; }
@@ -171,7 +179,7 @@ button, .btn, a.btn {
 .btn-secondary[title] { position: relative; }
 
 /* AI logo buttons */
-.ai-logo { width: 20px; height: 20px; margin-right: 8px; vertical-align: middle; background: white; padding: 3px; border-radius: 6px; box-shadow: 0 6px 18px rgba(2,6,23,0.08); transition: transform .18s ease, box-shadow .18s ease; }
+.ai-logo { width: 20px; height: 20px; margin-right: 8px; vertical-align: middle; background: white; padding: 3px; border-radius: 6px; box-shadow: 0 6px 18px rgba(var(--shadow-color),0.08); transition: transform .18s ease, box-shadow .18s ease; }
 .btn-chatgpt .ai-logo { border-radius: 6px; }
 .btn-claude .ai-logo { border-radius: 6px; }
 .btn-chatgpt:hover .ai-logo { transform: translateY(-3px) scale(1.03); box-shadow: 0 10px 30px rgba(34,197,94,0.12); }
@@ -350,8 +358,8 @@ button, .btn, a.btn {
 .btn-chatgpt { background: linear-gradient(90deg,#0ea5e9,#0284c7); color: white; border: none; }
 .btn-claude { background: linear-gradient(90deg,#06b6d4,#f97316); color: white; border: none; }
 
-.btn-ghost { background: transparent; border: none; padding: 8px; color: var(--text-muted); }
-.btn-ghost:hover { color: var(--text-main); background: rgba(2,6,23,0.03); }
+.btn-ghost { background: transparent; border: none; padding: 8px; color: var(--text-secondary); }
+.btn-ghost:hover { color: var(--text-primary); background: rgba(var(--shadow-color),0.03); }
 
 /* Hover glows: ChatGPT blue, Claude rainbow-ish border */
 .btn-chatgpt:hover { box-shadow: 0 8px 40px rgba(2,132,199,0.16); }
