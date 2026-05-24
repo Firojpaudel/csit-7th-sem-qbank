@@ -39,9 +39,28 @@ async function fetchMe() {
     if (!resp.ok) { setCurrentUser(null); return; }
     const data = await resp.json();
     setCurrentUser(data.user);
+    // if user has keys stored on server, fetch masked indicators
+    try { await fetchUserKeys(); } catch (e) { /* ignore */ }
   } catch (e) {
     setCurrentUser(null);
   }
+}
+
+async function fetchUserKeys() {
+  if (!state.sessionToken) return;
+  try {
+    const resp = await fetch('/me/keys', { headers: { 'Authorization': `Bearer ${state.sessionToken}` } });
+    if (!resp.ok) return;
+    const data = await resp.json();
+    state.userKeys = data || {};
+  } catch (e) { state.userKeys = {}; }
+}
+
+async function saveUserKeys(apiKey, groqKey) {
+  if (!state.sessionToken) throw new Error('Not signed in');
+  const resp = await fetch('/me/keys', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.sessionToken}` }, body: JSON.stringify({ apiKey, groqKey }) });
+  if (!resp.ok) throw new Error('Could not save keys');
+  await fetchUserKeys();
 }
 
 // Utilities for rendering
@@ -311,17 +330,26 @@ function saveSettings(e) {
   const groqKey = formData.get('groqKey')?.trim() || '';
   const turbo = formData.get('useTurbo') === 'on';
   const neonEnabled = formData.get('useNeon') === 'on';
-  
-  localStorage.setItem('or_api_key', key);
-  localStorage.setItem('groq_api_key', groqKey);
+  // Save toggles locally; save API keys to server if signed in
   localStorage.setItem('use_turbo', turbo);
   localStorage.setItem('neon_enabled', neonEnabled);
-  
-  state.apiKey = key;
-  state.groqKey = groqKey;
   state.useTurbo = turbo;
   state.neonEnabled = neonEnabled;
-  toggleSettings();
+
+  if (state.currentUser) {
+    // Save keys server-side
+    saveUserKeys(key || null, groqKey || null).then(()=>{
+      state.apiKey = '';
+      state.groqKey = '';
+      toggleSettings();
+    }).catch(err=>{ alert('Failed to save keys: '+(err.message||err)); });
+  } else {
+    localStorage.setItem('or_api_key', key);
+    localStorage.setItem('groq_api_key', groqKey);
+    state.apiKey = key;
+    state.groqKey = groqKey;
+    toggleSettings();
+  }
 }
 
 async function handleSignIn(e) {
@@ -534,7 +562,7 @@ function renderSettingsModal() {
       <form onsubmit="saveSettings(event)" style="display:flex; flex-direction: column; gap: 16px;">
         <div class="form-group">
           <label>OpenRouter API Key (Standard)</label>
-          <input type="password" name="apiKey" value="${state.apiKey || ''}" class="input-brutal" placeholder="sk-or-... (optional if Turbo enabled)">
+          <input type="password" name="apiKey" value="${state.currentUser && state.userKeys && state.userKeys.api_key_masked ? state.userKeys.api_key_masked : (state.apiKey||'')}" class="input-brutal" placeholder="sk-or-... (optional if Turbo enabled)">
           <small>Get a free key from <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai</a></small>
         </div>
 
@@ -547,7 +575,7 @@ function renderSettingsModal() {
 
         <div class="form-group" style="${state.useTurbo ? '' : 'opacity:0.7'}">
           <label>Groq API Key</label>
-          <input type="password" name="groqKey" value="${state.groqKey || ''}" class="input-brutal" placeholder="gsk_...">
+          <input type="password" name="groqKey" value="${state.currentUser && state.userKeys && state.userKeys.groq_key_masked ? state.userKeys.groq_key_masked : (state.groqKey||'')}" class="input-brutal" placeholder="gsk_...">
         </div>
 
         <div class="form-group">
@@ -701,7 +729,23 @@ function renderQuestionList() {
 // Main Render Function
 function render() {
   const container = document.getElementById('app');
-  
+  // If user is not signed in, show onboarding/sign-in screen only
+  if (!state.currentUser) {
+    container.innerHTML = `
+      <div style="display:flex; align-items:center; justify-content:center; min-height:60vh;">
+        <div class="card" style="max-width:520px; width:100%; padding:28px; text-align:left;">
+          <h2>Welcome — Please sign in</h2>
+          <p style="color:var(--text-muted);">Sign in or create an account to continue. Your API keys will be stored securely per account.</p>
+          <div style="display:flex; gap:12px; margin-top:18px;">
+            <button class="btn btn-primary" onclick="toggleSettings()">Sign in / Sign up</button>
+            <button class="btn" onclick="() => { /* optionally show info */ }">Learn more</button>
+          </div>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
   const currentSub = state.subjects[state.activeSubject];
   const totalQs = currentSub.questions.length;
   const answeredQs = Object.keys(currentSub.answers).length;
