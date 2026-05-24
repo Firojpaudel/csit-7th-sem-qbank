@@ -14,6 +14,7 @@ let state = {
   apiKey: localStorage.getItem('or_api_key') || '',
   groqKey: localStorage.getItem('groq_api_key') || '',
   useTurbo: localStorage.getItem('use_turbo') === 'true',
+  neonEnabled: localStorage.getItem('neon_enabled') === 'true',
   subjects: {},
   activeSubject: 'advanced-java',
   filter: 'all', // all, answered, unanswered
@@ -178,14 +179,17 @@ function saveSettings(e) {
   const key = formData.get('apiKey').trim();
   const groqKey = formData.get('groqKey')?.trim() || '';
   const turbo = formData.get('useTurbo') === 'on';
+  const neonEnabled = formData.get('useNeon') === 'on';
   
   localStorage.setItem('or_api_key', key);
   localStorage.setItem('groq_api_key', groqKey);
   localStorage.setItem('use_turbo', turbo);
+  localStorage.setItem('neon_enabled', neonEnabled);
   
   state.apiKey = key;
   state.groqKey = groqKey;
   state.useTurbo = turbo;
+  state.neonEnabled = neonEnabled;
   toggleSettings();
 }
 
@@ -218,12 +222,31 @@ async function handleGenerateAnswer(subjectId, questionIndex) {
     const answer = await callAI(qObj.text);
     subject.answers[qObj.text] = answer;
     saveAnswers();
+    // Fire-and-forget save to Neon if enabled
+    if (state.neonEnabled) {
+      sendToNeon(state.activeSubject, qObj.text, answer).catch((err)=>{
+        console.warn('Neon save failed:', err.message || err);
+      });
+    }
     qObj.expanded = true;
   } catch (err) {
     qObj.error = err.message;
   } finally {
     qObj.generating = false;
     render();
+  }
+}
+
+// Send an answer to the backend Neon service
+async function sendToNeon(subjectId, questionText, answerText) {
+  try {
+    await fetch('/saveAnswer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subject: subjectId, question: questionText, answer: answerText })
+    });
+  } catch (e) {
+    throw e;
   }
 }
 
@@ -327,8 +350,17 @@ function renderSettingsModal() {
           <input type="password" name="groqKey" value="${state.groqKey}" class="input-brutal" placeholder="gsk_...">
         </div>
 
+        <div class="form-group">
+          <label style="display:flex; align-items:center; gap:8px;">
+            <input type="checkbox" name="useNeon" ${state.neonEnabled ? 'checked' : ''} style="width:auto; transform:scale(1.1);">
+            Save answers to Neon DB (server-side)
+          </label>
+          <small style="color:var(--text-muted);">The Neon connection string must be configured on the server in the environment.</small>
+        </div>
+
         <div class="status-indicator">
-          Mode: ${state.useTurbo ? '<span style="color:#d946ef">🚀 Turbo Enabled</span>' : '<span style="color:var(--primary)">🐢 Standard Enabled</span>'}
+          Mode: ${state.useTurbo ? '<span style="color:#d946ef">Turbo Enabled</span>' : '<span style="color:var(--primary)">Standard Enabled</span>'}
+          ${state.neonEnabled ? '<div style="margin-top:8px; font-size:13px; color:var(--text-muted);">Neon: Enabled (server)</div>' : ''}
         </div>
         <button type="submit" class="btn btn-primary" style="width:100%">Save Settings</button>
       </form>
@@ -385,14 +417,14 @@ function renderQuestionList() {
 
   return processedQs.map((q, displayIdx) => {
     const badgeHtml = q.isAnswered 
-      ? '<span class="status-badge badge-answered">ANSWERED ✓</span>'
-      : '<span class="status-badge badge-unanswered">UNANSWERED</span>';
+      ? '<span class="status-badge badge-answered"><i class="ph-bold ph-check-circle"></i> ANSWERED</span>'
+      : '<span class="status-badge badge-unanswered"><i class="ph-bold ph-clock"></i> UNANSWERED</span>';
 
     const renderAiLinksHelper = () => {
         return `
             <div class="ai-links">
-                <a href="${aiPromptBuilder(q.text, 'chatgpt')}" target="_blank" class="btn btn-secondary" style="font-size: 0.8rem; padding: 4px 8px;">Ask ChatGPT ↗</a>
-                <a href="${aiPromptBuilder(q.text, 'claude')}" target="_blank" class="btn btn-secondary" style="font-size: 0.8rem; padding: 4px 8px;">Ask Claude ↗</a>
+                <a href="${aiPromptBuilder(q.text, 'chatgpt')}" target="_blank" class="btn btn-glow btn-chatgpt"><i class="ph-bold ph-chat-circle-text"></i> ChatGPT</a>
+                <a href="${aiPromptBuilder(q.text, 'claude')}" target="_blank" class="btn btn-glow btn-claude"><i class="ph-bold ph-brain"></i> Claude</a>
             </div>
         `;
     };
@@ -401,13 +433,13 @@ function renderQuestionList() {
     let contentHtml = '';
 
     if (q.obj.generating) {
-      actionsHtml = `<button class="btn" disabled>⬛⬛⬛ Generating...</button>`;
+      actionsHtml = `<button class="btn btn-primary" disabled style="opacity:0.8;"><i class="ph-bold ph-spinner ph-spin"></i> Generating...</button>`;
     } else if (q.isAnswered) {
       actionsHtml = `
         <button class="btn btn-secondary" onclick="toggleAnswer('${state.activeSubject}', ${q.originalIdx})">
-          ${q.obj.expanded ? '▼ Hide Answer' : '▶ Show Answer'}
+          ${q.obj.expanded ? '<i class="ph-bold ph-caret-up"></i> Hide Answer' : '<i class="ph-bold ph-caret-down"></i> Show Answer'}
         </button>
-        <button class="btn" onclick="handleGenerateAnswer('${state.activeSubject}', ${q.originalIdx})">🔄 Regenerate</button>
+        <button class="btn" onclick="handleGenerateAnswer('${state.activeSubject}', ${q.originalIdx})"><i class="ph-bold ph-arrows-clockwise"></i> Regenerate</button>
         ${renderAiLinksHelper()}
       `;
       
@@ -426,7 +458,7 @@ function renderQuestionList() {
       }
     } else {
       actionsHtml = `
-          <button class="btn btn-primary" onclick="handleGenerateAnswer('${state.activeSubject}', ${q.originalIdx})">Generate Answer ▶</button>
+          <button class="btn btn-primary" onclick="handleGenerateAnswer('${state.activeSubject}', ${q.originalIdx})"><i class="ph-bold ph-sparkle"></i> Generate Answer</button>
           ${renderAiLinksHelper()}
       `;
     }
