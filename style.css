@@ -176,6 +176,9 @@ button, .btn, a.btn {
   box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
 }
 
+.year-pill { padding: 8px 14px; border-radius: 999px; background: white; border:1px solid var(--border); box-shadow: var(--shadow-sm); font-weight:600; }
+.year-pill.active { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 8px 30px rgba(79,70,229,0.12); }
+
 /* Subject Header */
 .subject-header {
   display: flex;

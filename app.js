@@ -15,6 +15,7 @@ let state = {
   groqKey: localStorage.getItem('groq_api_key') || '',
   useTurbo: localStorage.getItem('use_turbo') === 'true',
   neonEnabled: localStorage.getItem('neon_enabled') === 'true',
+  selectedYear: localStorage.getItem('selected_year') || 'all',
   subjects: {},
   activeSubject: 'advanced-java',
   filter: 'all', // all, answered, unanswered
@@ -29,6 +30,57 @@ function escapeHtml(str) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
+}
+
+// Year tagging helpers (stored in localStorage as simple map question->year)
+function loadYearMap() {
+  return JSON.parse(localStorage.getItem('csit_years') || '{}');
+}
+
+function saveYearMap(map) {
+  localStorage.setItem('csit_years', JSON.stringify(map));
+}
+
+function getYearForQuestion(qText) {
+  const map = loadYearMap();
+  return map[qText] || 'unknown';
+}
+
+function setYearForQuestion(qText, year) {
+  const map = loadYearMap();
+  if (year === 'unknown' || !year) delete map[qText]; else map[qText] = year;
+  saveYearMap(map);
+}
+
+function getYearsForSubject(subId) {
+  const qs = state.subjects[subId].questions || [];
+  const map = loadYearMap();
+  const years = new Set();
+  years.add('all');
+  years.add('unknown');
+  for (const q of qs) {
+    const text = typeof q === 'object' ? q.text : q;
+    const y = map[text];
+    if (y) years.add(y);
+  }
+  return Array.from(years);
+}
+
+function setYearFilter(year) {
+  state.selectedYear = year;
+  localStorage.setItem('selected_year', year);
+  render();
+}
+
+function assignYear(subjectId, questionIndex) {
+  const q = state.subjects[subjectId].questions[questionIndex];
+  const text = typeof q === 'object' ? q.text : q;
+  const current = getYearForQuestion(text);
+  const input = prompt('Assign year for this question (e.g. 2022). Leave empty to clear.', current === 'unknown' ? '' : current);
+  if (input === null) return; // cancelled
+  const year = (String(input).trim() || 'unknown');
+  setYearForQuestion(text, year === 'unknown' ? 'unknown' : year);
+  render();
 }
 
 function isCodeLike(text) {
@@ -407,6 +459,15 @@ function renderQuestionList() {
       processedQs = processedQs.filter(q => !q.isAnswered);
   }
   
+  // Year filtering
+  if (state.selectedYear && state.selectedYear !== 'all') {
+    processedQs = processedQs.filter(q => {
+      const y = getYearForQuestion(q.text);
+      if (state.selectedYear === 'unknown') return y === 'unknown';
+      return y === state.selectedYear;
+    });
+  }
+
   if (state.search) {
       processedQs = processedQs.filter(q => q.text.toLowerCase().includes(state.search));
   }
@@ -440,6 +501,7 @@ function renderQuestionList() {
           ${q.obj.expanded ? '<i class="ph-bold ph-caret-up"></i> Hide Answer' : '<i class="ph-bold ph-caret-down"></i> Show Answer'}
         </button>
         <button class="btn" onclick="handleGenerateAnswer('${state.activeSubject}', ${q.originalIdx})"><i class="ph-bold ph-arrows-clockwise"></i> Regenerate</button>
+        <button class="btn btn-secondary" onclick="assignYear('${state.activeSubject}', ${q.originalIdx})">Tag Year</button>
         ${renderAiLinksHelper()}
       `;
       
@@ -459,6 +521,7 @@ function renderQuestionList() {
     } else {
       actionsHtml = `
           <button class="btn btn-primary" onclick="handleGenerateAnswer('${state.activeSubject}', ${q.originalIdx})"><i class="ph-bold ph-sparkle"></i> Generate Answer</button>
+          <button class="btn btn-secondary" onclick="assignYear('${state.activeSubject}', ${q.originalIdx})">Tag Year</button>
           ${renderAiLinksHelper()}
       `;
     }
@@ -534,6 +597,12 @@ function render() {
             </button>
             <button class="btn btn-primary btn-glow" onclick="window.print()"><i class="ph-bold ph-printer"></i> Export PDF</button>
           </div>
+      </div>
+
+      <div style="margin-bottom:18px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+        ${getYearsForSubject(state.activeSubject).map(y => `
+          <button class="filter-btn ${state.selectedYear === y ? 'active' : ''}" onclick="setYearFilter('${y}')">${y === 'all' ? 'All Years' : (y === 'unknown' ? 'Unassigned' : y)}</button>
+        `).join('')}
       </div>
 
       <div class="controls-bar">
