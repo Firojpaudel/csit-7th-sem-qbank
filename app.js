@@ -56,10 +56,27 @@ async function fetchMe() {
 async function fetchUserKeys() {
   if (!state.sessionToken) return;
   try {
+    // 1. Get masked versions for settings display
     const resp = await fetch(`${API_BASE}/me/keys`, { headers: { 'Authorization': `Bearer ${state.sessionToken}` } });
-    if (!resp.ok) return;
-    const data = await resp.json();
-    state.userKeys = data || {};
+    if (resp.ok) {
+      const data = await resp.json();
+      state.userKeys = data || {};
+    }
+
+    // 2. Get full decrypted keys and restore them silently
+    const fullResp = await fetch(`${API_BASE}/me/keys/full`, { headers: { 'Authorization': `Bearer ${state.sessionToken}` } });
+    if (fullResp.ok) {
+      const full = await fullResp.json();
+      // Only restore if the user doesn't already have the key locally (or if server has a newer/different one)
+      if (full.apiKey && (!state.apiKey || state.apiKey !== full.apiKey)) {
+        state.apiKey = full.apiKey;
+        localStorage.setItem('or_api_key', full.apiKey);
+      }
+      if (full.groqKey && (!state.groqKey || state.groqKey !== full.groqKey)) {
+        state.groqKey = full.groqKey;
+        localStorage.setItem('groq_api_key', full.groqKey);
+      }
+    }
   } catch (e) { state.userKeys = {}; }
 }
 

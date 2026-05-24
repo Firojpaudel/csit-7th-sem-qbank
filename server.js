@@ -138,6 +138,39 @@ app.get('/answers', async (req, res) => {
 
 const crypto = require('crypto');
 
+// ── AES-256-CBC encryption for stored API keys ──────────────────────────────
+// Set ENCRYPTION_KEY in your .env (32+ char string). Falls back to a default
+// so existing deployments work, but set your own for production!
+const ENC_KEY = Buffer.from(
+  (process.env.ENCRYPTION_KEY || 'csit-qbank-fallback-enc-key-32ch').slice(0, 32)
+  .padEnd(32, '0')
+);
+const IV_LEN = 16;
+
+function encryptKey(text) {
+  if (!text) return null;
+  try {
+    const iv = crypto.randomBytes(IV_LEN);
+    const cipher = crypto.createCipheriv('aes-256-cbc', ENC_KEY, iv);
+    const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
+    return 'enc:' + iv.toString('hex') + ':' + encrypted.toString('hex');
+  } catch (e) { console.error('encrypt failed', e); return text; }
+}
+
+function decryptKey(stored) {
+  if (!stored) return null;
+  // Handle un-encrypted legacy values (no 'enc:' prefix)
+  if (!stored.startsWith('enc:')) return stored;
+  try {
+    const parts = stored.slice(4).split(':');
+    const iv = Buffer.from(parts[0], 'hex');
+    const enc = Buffer.from(parts[1], 'hex');
+    const decipher = crypto.createDecipheriv('aes-256-cbc', ENC_KEY, iv);
+    return Buffer.concat([decipher.update(enc), decipher.final()]).toString('utf8');
+  } catch (e) { console.error('decrypt failed', e); return null; }
+}
+// ────────────────────────────────────────────────────────────────────────────
+
 app.post('/signup', async (req, res) => {
   if (!pool) return res.status(503).json({ error: 'Neon not configured' });
   const { email, password } = req.body || {};
@@ -187,22 +220,42 @@ app.get('/me', async (req, res) => {
   }
 });
 
-// Return masked keys for the signed-in user (does not reveal full secret)
+// Return masked keys for display (settings placeholder)
 app.get('/me/keys', async (req, res) => {
   if (!pool) return res.status(503).json({ error: 'Neon not configured' });
   const auth = req.headers['authorization'];
   if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ error: 'No token' });
   const token = auth.slice(7);
   try {
-    const r = await pool.query('SELECT id, email, api_key, groq_key FROM users WHERE token=$1', [token]);
+    const r = await pool.query('SELECT api_key, groq_key FROM users WHERE token=$1', [token]);
     if (!r.rows.length) return res.status(401).json({ error: 'Invalid token' });
     const u = r.rows[0];
-    const mask = (s) => { if (!s) return null; return s.slice(0,4) + '••••' + s.slice(-4); };
-    return res.json({ ok: true, api_key_masked: mask(u.api_key), groq_key_masked: mask(u.groq_key) });
+    const rawApi = decryptKey(u.api_key);
+    const rawGroq = decryptKey(u.groq_key);
+    const mask = (s) => { if (!s) return null; return s.slice(0, 6) + '••••' + s.slice(-4); };
+    return res.json({ ok: true, api_key_masked: mask(rawApi), groq_key_masked: mask(rawGroq) });
   } catch (e) { console.error('me/keys failed', e); return res.status(500).json({ error: 'Lookup failed' }); }
 });
 
-// Save API keys for the signed-in user
+// Return FULL decrypted keys to the authenticated user (for auto-restore on reload)
+app.get('/me/keys/full', async (req, res) => {
+  if (!pool) return res.status(503).json({ error: 'Neon not configured' });
+  const auth = req.headers['authorization'];
+  if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ error: 'No token' });
+  const token = auth.slice(7);
+  try {
+    const r = await pool.query('SELECT api_key, groq_key FROM users WHERE token=$1', [token]);
+    if (!r.rows.length) return res.status(401).json({ error: 'Invalid token' });
+    const u = r.rows[0];
+    return res.json({
+      ok: true,
+      apiKey: decryptKey(u.api_key) || null,
+      groqKey: decryptKey(u.groq_key) || null
+    });
+  } catch (e) { console.error('me/keys/full failed', e); return res.status(500).json({ error: 'Lookup failed' }); }
+});
+
+// Save API keys — encrypt before storing in DB
 app.post('/me/keys', async (req, res) => {
   if (!pool) return res.status(503).json({ error: 'Neon not configured' });
   const auth = req.headers['authorization'];
@@ -213,7 +266,16 @@ app.post('/me/keys', async (req, res) => {
     const r = await pool.query('SELECT id FROM users WHERE token=$1', [token]);
     if (!r.rows.length) return res.status(401).json({ error: 'Invalid token' });
     const userId = r.rows[0].id;
-    await pool.query('UPDATE users SET api_key=$1, groq_key=$2 WHERE id=$3', [apiKey || null, groqKey || null, userId]);
+    const encApi = apiKey ? encryptKey(apiKey) : null;
+    const encGroq = groqKey ? encryptKey(groqKey) : null;
+    // Only overwrite existing value if a new one was provided
+    if (encApi !== null && encGroq !== null) {
+      await pool.query('UPDATE users SET api_key=$1, groq_key=$2 WHERE id=$3', [encApi, encGroq, userId]);
+    } else if (encApi !== null) {
+      await pool.query('UPDATE users SET api_key=$1 WHERE id=$2', [encApi, userId]);
+    } else if (encGroq !== null) {
+      await pool.query('UPDATE users SET groq_key=$1 WHERE id=$2', [encGroq, userId]);
+    }
     return res.json({ ok: true });
   } catch (e) { console.error('me/keys save failed', e); return res.status(500).json({ error: 'Save failed' }); }
 });
