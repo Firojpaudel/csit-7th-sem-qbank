@@ -1080,6 +1080,39 @@ button, .btn, a.btn {
   font-size: 13px;
 }
 
+/* Mermaid Diagram Styling */
+.mermaid-container {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  margin: 16px 0;
+  display: flex;
+  justify-content: center;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+[data-theme="light"] .mermaid-container {
+  background: rgba(0, 0, 0, 0.015);
+}
+.mermaid {
+  font-family: var(--font-main) !important;
+}
+
+/* Responsive Tables */
+.question-text table, .answer-box table {
+  display: block;
+  width: 100% !important;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Modal Max Height limit for mobile landscape */
+.modal {
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
 @media print {
   body { background: white; color: black; }
   .header, .controls-bar, .sidebar-panel, .year-filters-section, .question-actions, .answer-actions, .modal, .modal-overlay { display: none !important; }
@@ -1115,11 +1148,89 @@ button, .btn, a.btn {
   .subject-header { gap: 10px; }
   .controls-bar { flex-direction: column; }
   .search-wrap { flex: 1 1 auto; }
+  
+  /* Horizontal scrollable subjects on mobile */
+  .tabs {
+    flex-direction: row;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding-bottom: 6px;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .tab {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+    padding: 8px 12px;
+  }
+}
+
+@media (max-width: 600px) {
+  /* Stack question actions vertically */
+  .question-actions {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 8px;
+  }
+  .question-actions > .btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  /* Side-by-side AI link buttons */
+  .ai-links {
+    width: 100%;
+    display: flex;
+    gap: 8px;
+  }
+  .ai-links a.btn {
+    flex: 1;
+    justify-content: center;
+    font-size: 11.5px;
+    padding: 8px 6px;
+  }
 }
 
 @media (max-width: 520px) {
   .header-content { justify-content: center; text-align: center; gap: 12px; }
-  .header-controls { flex-wrap: wrap; justify-content: center; }
+  .header-controls { flex-wrap: wrap; justify-content: center; width: 100%; }
   .question-text { padding: 12px; font-size: 14px; }
   .answer-box { padding: 14px; font-size: 13.5px; }
+  
+  /* Make year filters horizontal swipe */
+  .year-filters-section {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px;
+  }
+  .year-pills-list {
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+    display: flex;
+    flex-wrap: nowrap;
+  }
+  .year-pills-list::-webkit-scrollbar {
+    display: none;
+  }
+  .year-pill {
+    flex: 0 0 auto;
+  }
+  
+  /* Make filters full-width segmented control */
+  .filters {
+    width: 100%;
+    display: flex;
+  }
+  .filter-btn {
+    flex: 1;
+    text-align: center;
+    padding: 6px 4px;
+  }
 }

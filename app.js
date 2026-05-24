@@ -273,6 +273,35 @@ async function init() {
     };
   });
 
+  // Configure Marked for Mermaid diagrams
+  if (window.marked) {
+    const renderer = new marked.Renderer();
+    const originalCodeRenderer = renderer.code.bind(renderer);
+    renderer.code = function(codeArg, languageArg, isEscaped) {
+      let code = codeArg;
+      let language = languageArg;
+      
+      // Support marked v5+ object signature
+      if (codeArg && typeof codeArg === 'object') {
+        code = codeArg.text;
+        language = codeArg.lang || codeArg.language;
+      }
+      
+      if (language === 'mermaid') {
+        // Decode HTML entities if marked/browser pre-escaped them
+        let rawCode = code;
+        try {
+          const txt = document.createElement("textarea");
+          txt.innerHTML = rawCode;
+          rawCode = txt.value;
+        } catch(e) {}
+        return `<div class="mermaid-container"><pre class="mermaid">${rawCode}</pre></div>`;
+      }
+      return originalCodeRenderer(codeArg, languageArg, isEscaped);
+    };
+    marked.use({ renderer });
+  }
+
 
 
   loadDataFromDB();
@@ -1206,6 +1235,23 @@ function render() {
     // Syntax highlight any code blocks in answers and questions
     if (window.hljs && typeof window.hljs.highlightAll === 'function') {
       try { window.hljs.highlightAll(); } catch (e) { /* ignore */ }
+    }
+    // Render Mermaid diagrams dynamically
+    if (window.mermaid) {
+      try {
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: state.theme === 'light' ? 'default' : 'dark',
+          securityLevel: 'loose'
+        });
+        mermaid.run({
+          querySelector: '.mermaid:not([data-processed="true"])'
+        }).catch(err => {
+          console.warn("Mermaid rendering failed:", err);
+        });
+      } catch (e) {
+        console.warn("Mermaid initialization failed:", e);
+      }
     }
   }, 50);
 }
