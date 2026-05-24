@@ -142,7 +142,7 @@ function renderQuestionContent(text) {
 }
 
 // Initialize State merging logic with static DB and local storage answers
-function init() {
+async function init() {
   const savedAnswers = JSON.parse(localStorage.getItem('csit_answers') || '{}');
 
   SUBJECTS.forEach(sub => {
@@ -154,6 +154,23 @@ function init() {
       error: null
     };
   });
+
+  // Merge year_map.json into localStorage if present (don't override user edits)
+  try {
+    const resp = await fetch('assets/year_map.json', {cache: 'no-store'});
+    if (resp.ok) {
+      const remoteMap = await resp.json();
+      const localMap = loadYearMap();
+      const merged = Object.assign({}, remoteMap, localMap);
+      // only write if localMap was empty or remote added new entries
+      if (Object.keys(merged).length > Object.keys(localMap).length) {
+        saveYearMap(merged);
+      }
+    }
+  } catch (e) {
+    // ignore fetch errors (app still works)
+    console.warn('Could not load year_map.json', e && e.message);
+  }
 
   loadDataFromDB();
   setupEventListeners();
@@ -515,12 +532,12 @@ function renderQuestionList() {
       : '<span class="status-badge badge-unanswered"><i class="ph-bold ph-clock"></i> UNANSWERED</span>';
 
     const renderAiLinksHelper = () => {
-        return `
-            <div class="ai-links">
-                <a href="${aiPromptBuilder(q.text, 'chatgpt')}" target="_blank" class="btn btn-glow btn-chatgpt"><i class="ph-bold ph-chat-circle-text"></i> ChatGPT</a>
-                <a href="${aiPromptBuilder(q.text, 'claude')}" target="_blank" class="btn btn-glow btn-claude"><i class="ph-bold ph-brain"></i> Claude</a>
-            </div>
-        `;
+      return `
+        <div class="ai-links">
+          <a href="${aiPromptBuilder(q.text, 'chatgpt')}" target="_blank" class="btn btn-glow btn-chatgpt"><img src="assets/chatgpt.svg" alt="ChatGPT" class="ai-logo"> ChatGPT</a>
+          <a href="${aiPromptBuilder(q.text, 'claude')}" target="_blank" class="btn btn-glow btn-claude"><img src="assets/claude.svg" alt="Claude" class="ai-logo"> Claude</a>
+        </div>
+      `;
     };
 
     let actionsHtml = '';

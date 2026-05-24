@@ -302,3 +302,8 @@ const QUESTIONS_DB = {
     "Short Notes\n1. Present worth\n2. PERT diagram"
   ]
 };
+
+// export for small utility scripts
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = QUESTIONS_DB;
+}
