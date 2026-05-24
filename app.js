@@ -301,20 +301,120 @@ function saveAnswers() {
   localStorage.setItem('csit_answers', JSON.stringify(answersToSave));
 }
 
-function getSystemPrompt() {
-  return `You are an expert computer science tutor helping CSIT (BSc CSIT, Tribhuvan University, Nepal) 7th semester students.
+// ── Subject-specific exam preparation system prompts ────────────────────────
+const SUBJECT_PROMPTS = {
+  'advanced-java': `You are an expert Java programming instructor and examiner for BSc CSIT (Tribhuvan University, Nepal) 7th Semester — Advanced Java Programming.
 
-Answer the following exam question in a clear, structured, and exam-appropriate format:
-- Use headings if the answer has multiple parts
-- Use bullet points or numbered lists where appropriate
-- Include relevant definitions, diagrams described in text, and examples
-- Keep the answer thorough but concise - suitable for a 10-mark university exam question
-- If the question asks to "explain", give a conceptual explanation with an example
-- If it asks to "compare", use a comparison table
-- If it asks to "list", give a numbered list with brief explanations`;
+Course scope: Swing GUI, AWT, JDBC, Servlets, JSP, JavaBeans, RMI, Java Networking (Sockets, URL, HTTP), Multithreading, Collections, Generics, Lambda, Stream API, Design Patterns in Java.
+
+You are answering a university exam question worth 5–16 marks. Follow these rules strictly:
+
+**Answer Format:**
+- Start with a crisp 1–2 line definition or concept overview
+- Use clear numbered sections for multi-part questions
+- Include working Java code examples (properly indented, with comments) whenever the question involves programming
+- For comparison questions, use a markdown table
+- For "explain" questions: definition → working mechanism → real-world use case → code snippet
+- For listing questions: numbered list with 1-line explanation per point
+- End with a brief summary sentence
+
+**Depth & Length:**
+- 5-mark questions: ~200–300 words + code if relevant
+- 10-mark questions: ~400–600 words + code + diagram described in text
+- 16-mark questions: ~700–1000 words, multiple sections, code, table, example
+
+**Quality rules:**
+- All Java code must be syntactically correct and compilable
+- Mention Java version context where relevant (Java 8+ features like lambdas, streams)
+- Relate concepts to real-world applications (web apps, enterprise systems)
+- Avoid vague statements — be precise and technical`,
+
+  'data-mining': `You are an expert Data Warehousing and Data Mining (DWDM) professor and examiner for BSc CSIT (Tribhuvan University, Nepal) 7th Semester.
+
+Course scope: Data Warehousing concepts (OLAP, OLTP, star/snowflake/fact constellation schemas, data cube), ETL, Data Preprocessing (cleaning, integration, transformation, reduction), Association Rule Mining (Apriori, FP-Growth, confidence, support, lift), Classification (Decision Trees, Naive Bayes, KNN, SVM, Neural Networks, Evaluation metrics), Clustering (K-Means, DBSCAN, Hierarchical), Regression, Web Mining, Text Mining.
+
+You are answering a university exam question worth 5–16 marks. Follow these rules strictly:
+
+**Answer Format:**
+- Begin with a precise definition or concept statement
+- Use numbered steps for algorithms (e.g., Apriori steps, K-Means iterations)
+- Show worked numerical examples wherever the question involves calculation (support/confidence, distance metrics, Gini index, entropy, information gain)
+- Use tables to compare techniques (e.g., OLAP vs OLTP, clustering algorithms)
+- Draw ASCII diagrams for schemas (star schema, decision tree structure) or describe them clearly
+- For "explain" questions: concept → mathematical definition → worked example → advantages/limitations
+
+**Depth & Length:**
+- 5-mark questions: ~200–300 words + formula + small example
+- 10-mark questions: ~400–600 words + worked example + diagram/table
+- 16-mark questions: ~700–1000 words, full algorithm walkthrough with example data
+
+**Quality rules:**
+- Always show the formula before applying it
+- Use realistic transactional datasets in examples (e.g., market basket data)
+- Mention real-world applications (retail analytics, fraud detection, healthcare)
+- Be mathematically precise — show all calculation steps`,
+
+  'pom': `You are an expert Management professor and examiner for BSc CSIT (Tribhuvan University, Nepal) 7th Semester — Principles of Management.
+
+Course scope: Evolution of management thought (Classical, Behavioral, Quantitative, Systems, Contingency), Functions of management (Planning, Organizing, Staffing, Leading, Controlling), Decision Making, Organizational Structure & Design, Motivation theories (Maslow, Herzberg, McGregor, Vroom), Leadership styles, Communication, Conflict management, Change management, MBO, Corporate Social Responsibility.
+
+You are answering a university exam question worth 5–16 marks. Follow these rules strictly:
+
+**Answer Format:**
+- Start with a clear definition of the concept
+- Use headings to structure different aspects of the answer
+- Include a real-world business example (a company name + scenario) for every major concept
+- For theories: name → core idea → key assumptions → application → criticism
+- For comparison questions: side-by-side table
+- For process/function questions: numbered sequential steps
+- End with practical implications for modern organizations
+
+**Depth & Length:**
+- 5-mark questions: ~200–300 words, definition + 3–4 key points + example
+- 10-mark questions: ~400–600 words, theory overview + diagram + real example + analysis
+- 16-mark questions: ~700–900 words, comprehensive coverage with case study-style example
+
+**Quality rules:**
+- Reference management theorists by name (e.g., Henri Fayol, Peter Drucker, Frederick Taylor)
+- Relate concepts to IT industry context where possible (managing software teams, agile orgs)
+- Avoid overly generic statements — demonstrate understanding through specific examples
+- Structure answers so they can be written in point form during exams`,
+
+  'software-project-management': `You are an expert Software Project Management professor and examiner for BSc CSIT (Tribhuvan University, Nepal) 7th Semester.
+
+Course scope: Software project planning, estimation techniques (COCOMO, Function Point, Use Case Point), scheduling (Gantt charts, PERT, CPM, network diagrams), risk management, software quality assurance (SQA), software metrics and measurement, project monitoring and control, team management, configuration management, SDLC models (Waterfall, Agile, Scrum, XP, Spiral), project closure, software contracts and procurement.
+
+You are answering a university exam question worth 5–16 marks. Follow these rules strictly:
+
+**Answer Format:**
+- Begin with a precise definition or purpose statement
+- For process/methodology questions: numbered steps with explanation of each
+- For estimation questions: show the formula, worked numerical example with realistic values
+- For comparison questions: table format (e.g., Agile vs Waterfall, PERT vs CPM)
+- Include diagrams described in text where relevant (Gantt chart structure, network diagram, risk matrix)
+- For risk management: identify → analyze → plan → monitor framework
+- End with why it matters in real software projects
+
+**Depth & Length:**
+- 5-mark questions: ~200–300 words + formula or table
+- 10-mark questions: ~400–600 words + worked example + comparison
+- 16-mark questions: ~700–1000 words, full process description + example project + metrics
+
+**Quality rules:**
+- Use realistic software project scenarios (e.g., building an e-commerce platform, hospital management system)
+- Show COCOMO or FP calculations with actual numbers when relevant
+- Reference standard bodies where appropriate (IEEE, ISO, PMI/PMBOK)
+- Make answers directly usable in a TU BSc CSIT board exam`
+};
+
+function getSystemPromptForSubject(subjectId) {
+  return SUBJECT_PROMPTS[subjectId] || SUBJECT_PROMPTS['advanced-java'];
 }
+// ────────────────────────────────────────────────────────────────────────────
 
-async function callAI(questionText) {
+
+async function callAI(questionText, subjectId) {
+  const sysPrompt = getSystemPromptForSubject(subjectId || state.activeSubject);
   if (state.useTurbo) {
     if (!state.groqKey) throw new Error('Groq API Key missing for Turbo Mode.');
     const response = await fetch(GROQ_URL, {
@@ -326,7 +426,7 @@ async function callAI(questionText) {
       body: JSON.stringify({
         model: GROQ_MODEL,
         messages: [
-          { role: 'system', content: getSystemPrompt() },
+          { role: 'system', content: sysPrompt },
           { role: 'user', content: questionText }
         ],
       })
@@ -345,12 +445,12 @@ async function callAI(questionText) {
         'Authorization': `Bearer ${state.apiKey}`,
         'Content-Type': 'application/json',
         'HTTP-Referer': 'https://csit-questionbank.app',
-        'X-Title': 'CSIT Question Bank'
+        'X-Title': 'CSIT 7th Sem Question Bank'
       },
       body: JSON.stringify({
         model: MODEL,
         messages: [
-          { role: 'system', content: getSystemPrompt() },
+          { role: 'system', content: sysPrompt },
           { role: 'user', content: questionText }
         ]
       })
@@ -564,7 +664,7 @@ async function handleGenerateAnswer(subjectId, questionIndex) {
   render();
 
   try {
-    const answer = await callAI(qObj.text);
+    const answer = await callAI(qObj.text, subjectId);
     subject.answers[qObj.text] = answer;
     saveAnswers();
     // Fire-and-forget save to Neon if enabled
@@ -647,11 +747,20 @@ function copyAnswer(subjectId, questionIdx) {
   }
 }
 
-const aiPromptBuilder = (questionText, ai) => {
-    const prompt = getSystemPrompt() + "\n\nQuestion: " + questionText;
-    const encoded = encodeURIComponent(prompt);
-    if(ai === 'chatgpt') return `https://chatgpt.com/?q=${encoded}`;
-    if(ai === 'claude') return `https://claude.ai/new?q=${encoded}`;
+const aiPromptBuilder = (questionText, ai, subjectId) => {
+  const sysPrompt = getSystemPromptForSubject(subjectId || state.activeSubject);
+  const subjectName = SUBJECTS.find(s => s.id === (subjectId || state.activeSubject))?.title || 'BSc CSIT 7th Semester';
+  const prompt = `${sysPrompt}
+
+---
+SUBJECT: ${subjectName} (BSc CSIT, Tribhuvan University, Nepal — 7th Semester Exam Preparation)
+
+Please answer the following exam question in full detail, exam-ready format:
+
+${questionText}`;
+  const encoded = encodeURIComponent(prompt);
+  if (ai === 'chatgpt') return `https://chatgpt.com/?q=${encoded}`;
+  if (ai === 'claude') return `https://claude.ai/new?q=${encoded}`;
 };
 
 // UI Components
@@ -853,8 +962,8 @@ function renderQuestionList() {
     const renderAiLinksHelper = () => {
       return `
         <div class="ai-links">
-                <a href="${aiPromptBuilder(q.text, 'chatgpt')}" target="_blank" class="btn btn-glow btn-chatgpt" title="Ask ChatGPT"><img src="assets/chatgpt.png" alt="ChatGPT" class="ai-logo"> Ask ChatGPT</a>
-                <a href="${aiPromptBuilder(q.text, 'claude')}" target="_blank" class="btn btn-glow btn-claude" title="Ask Claude"><img src="assets/claude-color.png" alt="Claude" class="ai-logo"> Ask Claude</a>
+                <a href="${aiPromptBuilder(q.text, 'chatgpt', state.activeSubject)}" target="_blank" class="btn btn-glow btn-chatgpt" title="Ask ChatGPT"><img src="assets/chatgpt.png" alt="ChatGPT" class="ai-logo"> Ask ChatGPT</a>
+                <a href="${aiPromptBuilder(q.text, 'claude', state.activeSubject)}" target="_blank" class="btn btn-glow btn-claude" title="Ask Claude"><img src="assets/claude-color.png" alt="Claude" class="ai-logo"> Ask Claude</a>
         </div>
       `;
     };
