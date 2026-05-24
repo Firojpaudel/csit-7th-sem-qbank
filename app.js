@@ -181,14 +181,14 @@ function assignYear(subjectId, questionIndex) {
 
 function isCodeLike(text) {
   if (!text || typeof text !== 'string') return false;
-  const lines = text.split('\n').map(l=>l.trim());
+  const lines = text.split('\n').map(l => l.trim());
   // If many lines start with typical code tokens or contain semicolons/braces
   const codeHints = ['class ', 'public ', 'private ', 'protected ', 'System.out', 'console.log', 'def ', 'function ', ';', '{', '}', '#include', 'import '];
   let hints = 0;
   for (const h of codeHints) if (text.indexOf(h) !== -1) hints++;
   const indentedLines = lines.filter(l => l.startsWith(' ') || l.startsWith('\t')).length;
   if (hints >= 1 && lines.length > 1) return true;
-  if (indentedLines >= Math.max(2, Math.floor(lines.length/3))) return true;
+  if (indentedLines >= Math.max(2, Math.floor(lines.length / 3))) return true;
   return false;
 }
 
@@ -197,8 +197,8 @@ function renderQuestionContent(text) {
   // clean trailing separator lines like '---' or '...' to avoid ugly triples
   function cleanQuestionText(t) {
     const lines = String(t).split('\n');
-    while (lines.length && /^\s*[-._]{2,}\s*$/.test(lines[lines.length-1])) lines.pop();
-    while (lines.length && /^\s*\.\.\.\s*$/.test(lines[lines.length-1])) lines.pop();
+    while (lines.length && /^\s*[-._]{2,}\s*$/.test(lines[lines.length - 1])) lines.pop();
+    while (lines.length && /^\s*\.\.\.\s*$/.test(lines[lines.length - 1])) lines.pop();
     return lines.join('\n').trim();
   }
   text = cleanQuestionText(text);
@@ -273,20 +273,20 @@ async function init() {
     };
   });
 
-  // Configure Marked for Mermaid diagrams
+  // Configure Markdown for Mermaid diagrams
   if (window.marked) {
     const renderer = new marked.Renderer();
     const originalCodeRenderer = renderer.code.bind(renderer);
-    renderer.code = function(codeArg, languageArg, isEscaped) {
+    renderer.code = function (codeArg, languageArg, isEscaped) {
       let code = codeArg;
       let language = languageArg;
-      
+
       // Support marked v5+ object signature
       if (codeArg && typeof codeArg === 'object') {
         code = codeArg.text;
         language = codeArg.lang || codeArg.language;
       }
-      
+
       if (language === 'mermaid') {
         // Decode HTML entities if marked/browser pre-escaped them
         let rawCode = code;
@@ -294,7 +294,7 @@ async function init() {
           const txt = document.createElement("textarea");
           txt.innerHTML = rawCode;
           rawCode = txt.value;
-        } catch(e) {}
+        } catch (e) { }
         return `<div class="mermaid-container"><pre class="mermaid">${rawCode}</pre></div>`;
       }
       return originalCodeRenderer(codeArg, languageArg, isEscaped);
@@ -578,13 +578,13 @@ function saveSettings(e) {
   if (state.currentUser) {
     const apiToBackup = (key && !key.includes('•')) ? key : null;
     const groqToBackup = (groqKey && !groqKey.includes('•')) ? groqKey : null;
-    
+
     // Only call server backup if they actually provided new keys
     if (apiToBackup || groqToBackup) {
-      saveUserKeys(apiToBackup, groqToBackup).then(()=>{
+      saveUserKeys(apiToBackup, groqToBackup).then(() => {
         fetchAnswers();
         toggleSettings();
-      }).catch(err=>{ alert('Failed to backup keys on server: '+(err.message||err)); });
+      }).catch(err => { alert('Failed to backup keys on server: ' + (err.message || err)); });
     } else {
       fetchAnswers();
       toggleSettings();
@@ -603,9 +603,9 @@ async function handleSignIn(e) {
   const email = fd.get('email').trim();
   const password = fd.get('password');
   try {
-    const resp = await fetch(`${API_BASE}/signin`, { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email, password }) });
+    const resp = await fetch(`${API_BASE}/signin`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
     if (!resp.ok) {
-      const err = await resp.json().catch(()=>({}));
+      const err = await resp.json().catch(() => ({}));
       return alert(err.error || 'Sign in failed');
     }
     const data = await resp.json();
@@ -623,8 +623,8 @@ async function handleSignUp(e) {
   const email = fd.get('email').trim();
   const password = fd.get('password');
   try {
-    const resp = await fetch(`${API_BASE}/signup`, { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email, password }) });
-    if (!resp.ok) { const err = await resp.json().catch(()=>({})); return alert(err.error || 'Sign up failed'); }
+    const resp = await fetch(`${API_BASE}/signup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+    if (!resp.ok) { const err = await resp.json().catch(() => ({})); return alert(err.error || 'Sign up failed'); }
     const data = await resp.json();
     state.sessionToken = data.token;
     localStorage.setItem('session_token', data.token);
@@ -676,9 +676,9 @@ async function handleGenerateAnswer(subjectId, questionIndex) {
   const subject = state.subjects[subjectId];
   const questionText = subject.questions[questionIndex].text || subject.questions[questionIndex];
   const qObj = typeof subject.questions[questionIndex] === 'object' ? subject.questions[questionIndex] : { text: questionText };
-  
+
   if (typeof subject.questions[questionIndex] === 'string') {
-      subject.questions[questionIndex] = qObj;
+    subject.questions[questionIndex] = qObj;
   }
 
   if (state.useTurbo) {
@@ -705,7 +705,7 @@ async function handleGenerateAnswer(subjectId, questionIndex) {
     saveAnswers();
     // Fire-and-forget save to Neon if enabled
     if (state.neonEnabled) {
-      sendToNeon(state.activeSubject, qObj.text, answer).catch((err)=>{
+      sendToNeon(state.activeSubject, qObj.text, answer).catch((err) => {
         console.warn('Neon save failed:', err.message || err);
       });
     }
@@ -759,7 +759,7 @@ async function handleGenerateAll(subjectId) {
     const text = typeof q === 'object' ? q.text : q;
     return !subject.answers[text];
   });
-  
+
   if (unanswered.length === 0) return;
 
   if (!confirm(`This will generate answers for ${unanswered.length} questions. This may take a while or hit API rate limits. Continue?`)) {
@@ -768,12 +768,12 @@ async function handleGenerateAll(subjectId) {
 
   state.isGeneratingAll = true;
   for (let i = 0; i < subject.questions.length; i++) {
-     const questionText = typeof subject.questions[i] === 'object' ? subject.questions[i].text : subject.questions[i];
-     if (!subject.answers[questionText]) {
-        await handleGenerateAnswer(subjectId, i);
-        // Add a small delay to prevent rate limits
-        await new Promise(r => setTimeout(r, 1000));
-     }
+    const questionText = typeof subject.questions[i] === 'object' ? subject.questions[i].text : subject.questions[i];
+    if (!subject.answers[questionText]) {
+      await handleGenerateAnswer(subjectId, i);
+      // Add a small delay to prevent rate limits
+      await new Promise(r => setTimeout(r, 1000));
+    }
   }
   state.isGeneratingAll = false;
 }
@@ -782,7 +782,7 @@ function copyAnswer(subjectId, questionIdx) {
   const subject = state.subjects[subjectId];
   const qStr = typeof subject.questions[questionIdx] === 'object' ? subject.questions[questionIdx].text : subject.questions[questionIdx];
   const text = subject.answers[qStr];
-  if(text) {
+  if (text) {
     navigator.clipboard.writeText(text).then(() => {
       alert("Answer copied to clipboard!");
     });
@@ -946,53 +946,53 @@ function renderTabs() {
 
 function renderQuestionList() {
   const currentSub = state.subjects[state.activeSubject];
-  
+
   if (currentSub.questions.length === 0) {
     return `<div class="card" style="text-align: center; padding: 3rem;">
         <h3>No Questions Found</h3>
         <p>Please paste raw text into the corresponding text file for this subject and populate <strong>db.js</strong> manually.</p>
     </div>`;
   }
-  
+
   let processedQs = currentSub.questions.map((q, idx) => {
-      const text = typeof q === 'object' ? q.text : q;
-      const isAnswered = !!currentSub.answers[text];
-      return { 
-          originalIdx: idx, 
-          text: text, 
-          obj: typeof q === 'object' ? q : { text }, 
-          isAnswered,
-          answer: currentSub.answers[text]
-      };
+    const text = typeof q === 'object' ? q.text : q;
+    const isAnswered = !!currentSub.answers[text];
+    return {
+      originalIdx: idx,
+      text: text,
+      obj: typeof q === 'object' ? q : { text },
+      isAnswered,
+      answer: currentSub.answers[text]
+    };
   });
 
   // Apply year filter (after processedQs is available)
   if (state.selectedYear && state.selectedYear !== 'all') {
-      const sel = state.selectedYear;
-      processedQs = processedQs.filter(q => {
-          const y = q.obj.year || getYearForQuestion(q.text) || 'unknown';
-          if (sel === 'unknown') return !y || y === 'unknown';
-          return String(y) === String(sel);
-      });
+    const sel = state.selectedYear;
+    processedQs = processedQs.filter(q => {
+      const y = q.obj.year || getYearForQuestion(q.text) || 'unknown';
+      if (sel === 'unknown') return !y || y === 'unknown';
+      return String(y) === String(sel);
+    });
   }
-  
+
   if (state.filter === 'answered') {
-      processedQs = processedQs.filter(q => q.isAnswered);
+    processedQs = processedQs.filter(q => q.isAnswered);
   } else if (state.filter === 'unanswered') {
-      processedQs = processedQs.filter(q => !q.isAnswered);
+    processedQs = processedQs.filter(q => !q.isAnswered);
   }
-  
+
 
   if (state.search) {
-      processedQs = processedQs.filter(q => q.text.toLowerCase().includes(state.search));
+    processedQs = processedQs.filter(q => q.text.toLowerCase().includes(state.search));
   }
-  
+
   if (processedQs.length === 0) {
-      return `<p style="text-align: center; font-weight: bold; margin-top: 30px;">No questions match your filter.</p>`;
+    return `<p style="text-align: center; font-weight: bold; margin-top: 30px;">No questions match your filter.</p>`;
   }
 
   return processedQs.map((q, displayIdx) => {
-    const badgeHtml = state.currentUser ? (q.isAnswered 
+    const badgeHtml = state.currentUser ? (q.isAnswered
       ? '<span class="status-badge badge-answered"><i class="ph-bold ph-check-circle"></i> ANSWERED</span>'
       : '<span class="status-badge badge-unanswered"><i class="ph-bold ph-clock"></i> UNANSWERED</span>') : '';
 
@@ -1032,7 +1032,7 @@ function renderQuestionList() {
         <button class="btn btn-regenerate" onclick="handleGenerateAnswer('${state.activeSubject}', ${q.originalIdx})"><i class="ph-bold ph-arrows-clockwise"></i> Regenerate</button>
         ${renderAiLinksHelper()}
       `;
-      
+
       if (q.obj.expanded) {
         let formattedAnswer = window.marked ? marked.parse(q.answer) : q.answer;
         contentHtml = `
@@ -1120,8 +1120,8 @@ function render() {
             <path d="M7 9h10v1H7zM7 12h6v1H7z" fill="white" />
           </svg>
           <div>
-            <h1 style="margin:0;">CSIT 7th Sem — Question Bank</h1>
-            <p class="subtitle" style="margin:4px 0 0;">Curated exam questions with AI-assisted answers</p>
+            <h1 style="margin:0;">CSIT PrepSphere</h1>
+            <p class="subtitle" style="margin:4px 0 0;">7th Semester QBank & AI Study Assistant</p>
           </div>
         </div>
         <div class="header-controls">
@@ -1187,10 +1187,10 @@ function render() {
           <span class="section-label">Exam Year:</span>
           <div class="year-pills-list">
             ${getYearsForSubject(state.activeSubject).map(y => {
-              const label = String(y) === 'unknown' ? 'No Year' : String(y);
-              const sel = String(state.selectedYear || 'all');
-              return `<button class="year-pill ${sel === String(y) ? 'active' : ''}" onclick="setYearFilter('${y}')">${label}</button>`;
-            }).join('')}
+    const label = String(y) === 'unknown' ? 'No Year' : String(y);
+    const sel = String(state.selectedYear || 'all');
+    return `<button class="year-pill ${sel === String(y) ? 'active' : ''}" onclick="setYearFilter('${y}')">${label}</button>`;
+  }).join('')}
           </div>
         </div>
 
@@ -1219,15 +1219,15 @@ function render() {
       </main>
     </div>
   `;
-  
+
   setTimeout(() => {
-    if(window.renderMathInElement) {
+    if (window.renderMathInElement) {
       renderMathInElement(container, {
         delimiters: [
-          {left: "$$", right: "$$", display: true},
-          {left: "\\[", right: "\\]", display: true},
-          {left: "$", right: "$", display: false},
-          {left: "\\(", right: "\\)", display: false}
+          { left: "$$", right: "$$", display: true },
+          { left: "\\[", right: "\\]", display: true },
+          { left: "$", right: "$", display: false },
+          { left: "\\(", right: "\\)", display: false }
         ],
         throwOnError: false
       });
