@@ -21,6 +21,8 @@ if (NEON) {
           email TEXT UNIQUE NOT NULL,
           password_hash TEXT NOT NULL,
           token TEXT,
+          api_key TEXT,
+          groq_key TEXT,
           created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
         );
         CREATE TABLE IF NOT EXISTS answers (
@@ -33,6 +35,9 @@ if (NEON) {
           UNIQUE(user_id, subject, question)
         );
       `);
+      // ensure columns exist for older schemas
+      await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS api_key TEXT;`);
+      await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS groq_key TEXT;`);
     } catch (e) {
       console.error('Failed to ensure answers table exists', e);
     }
@@ -110,12 +115,44 @@ app.get('/me', async (req, res) => {
   if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ error: 'No token' });
   const token = auth.slice(7);
   try {
-    const r = await pool.query('SELECT id, email FROM users WHERE token=$1', [token]);
+    const r = await pool.query('SELECT id, email, api_key IS NOT NULL AS has_api_key, groq_key IS NOT NULL AS has_groq_key FROM users WHERE token=$1', [token]);
     if (!r.rows.length) return res.status(401).json({ error: 'Invalid token' });
-    return res.json({ ok: true, user: r.rows[0] });
+    const row = r.rows[0];
+    return res.json({ ok: true, user: { id: row.id, email: row.email, has_api_key: row.has_api_key, has_groq_key: row.has_groq_key } });
   } catch (e) {
     return res.status(500).json({ error: 'Lookup failed' });
   }
+});
+
+// Return masked keys for the signed-in user (does not reveal full secret)
+app.get('/me/keys', async (req, res) => {
+  if (!pool) return res.status(503).json({ error: 'Neon not configured' });
+  const auth = req.headers['authorization'];
+  if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ error: 'No token' });
+  const token = auth.slice(7);
+  try {
+    const r = await pool.query('SELECT id, email, api_key, groq_key FROM users WHERE token=$1', [token]);
+    if (!r.rows.length) return res.status(401).json({ error: 'Invalid token' });
+    const u = r.rows[0];
+    const mask = (s) => { if (!s) return null; return s.slice(0,4) + '••••' + s.slice(-4); };
+    return res.json({ ok: true, api_key_masked: mask(u.api_key), groq_key_masked: mask(u.groq_key) });
+  } catch (e) { console.error('me/keys failed', e); return res.status(500).json({ error: 'Lookup failed' }); }
+});
+
+// Save API keys for the signed-in user
+app.post('/me/keys', async (req, res) => {
+  if (!pool) return res.status(503).json({ error: 'Neon not configured' });
+  const auth = req.headers['authorization'];
+  if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ error: 'No token' });
+  const token = auth.slice(7);
+  const { apiKey, groqKey } = req.body || {};
+  try {
+    const r = await pool.query('SELECT id FROM users WHERE token=$1', [token]);
+    if (!r.rows.length) return res.status(401).json({ error: 'Invalid token' });
+    const userId = r.rows[0].id;
+    await pool.query('UPDATE users SET api_key=$1, groq_key=$2 WHERE id=$3', [apiKey || null, groqKey || null, userId]);
+    return res.json({ ok: true });
+  } catch (e) { console.error('me/keys save failed', e); return res.status(500).json({ error: 'Save failed' }); }
 });
 
 app.listen(3000, () => console.log('Neon backend listening on :3000')); 
