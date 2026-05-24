@@ -17,7 +17,7 @@ let state = {
   apiKey: localStorage.getItem('or_api_key') || '',
   groqKey: localStorage.getItem('groq_api_key') || '',
   useTurbo: localStorage.getItem('use_turbo') === 'true',
-  neonEnabled: localStorage.getItem('neon_enabled') === 'true',
+  neonEnabled: localStorage.getItem('neon_enabled') !== 'false',
   selectedYear: localStorage.getItem('selected_year') || 'all',
   sessionToken: localStorage.getItem('session_token') || '',
   currentUser: null,
@@ -27,7 +27,10 @@ let state = {
   search: '',
   isGeneratingAll: false,
   settingsOpen: false,
-  authMode: 'signin'
+  authMode: 'signin',
+  neonStatus: 'loading',
+  userKeys: {},
+  theme: localStorage.getItem('theme') || 'dark'
 };
 
 function setCurrentUser(user) {
@@ -104,7 +107,7 @@ function getYearsForSubject(subId) {
   const yearRegex = /\b(19|20)\d{2}\b/g;
   for (const q of qs) {
     const text = typeof q === 'object' ? q.text : q;
-    const y = map[text];
+    const y = typeof q === 'object' && q.year ? q.year : (map[text] || 'unknown');
     if (y) {
       years.add(y);
       continue;
@@ -182,14 +185,61 @@ function renderQuestionContent(text) {
     return lines.join('\n').trim();
   }
   text = cleanQuestionText(text);
+
+  // Check if text contains common HTML tags (like <table, <p, <div, <tbody, etc.)
+  if (/<(table|p|div|pre|code|span|br|strong|em|ul|li|ol|tr|td|th)\b[^>]*>/i.test(text)) {
+    return `<div class="question-text">${text}</div>`;
+  }
+
   if (isCodeLike(text)) {
     const escaped = escapeHtml(text);
     // try to guess language (Java common in this dataset)
     return `<pre class="question-code"><code class="language-java">${escaped}</code></pre>`;
   }
-  // Not code-like: convert newlines to <br> but keep monospace styling via CSS
-  const escaped = escapeHtml(text).replace(/\n/g, '<br>');
+  const escaped = escapeHtml(text);
+  if (text.includes('\t') || text.split('\n').some(line => line.includes('  '))) {
+    // Preserve space alignment for columns / transaction datasets
+    return `<div class="question-text question-monospace">${escaped}</div>`;
+  }
   return `<div class="question-text">${escaped}</div>`;
+}
+
+
+async function fetchAnswers() {
+  if (!state.neonEnabled) {
+    state.neonStatus = 'unconfigured';
+    return;
+  }
+  try {
+    const headers = {};
+    if (state.sessionToken) {
+      headers['Authorization'] = `Bearer ${state.sessionToken}`;
+    }
+    const resp = await fetch(`${API_BASE}/answers`, { headers });
+    if (resp.status === 503) {
+      state.neonStatus = 'unconfigured';
+      return;
+    }
+    if (!resp.ok) {
+      state.neonStatus = 'error';
+      return;
+    }
+    const data = await resp.json();
+    if (data.ok && data.answers) {
+      data.answers.forEach(row => {
+        const sub = state.subjects[row.subject];
+        if (sub) {
+          sub.answers[row.question] = row.answer;
+        }
+      });
+      state.neonStatus = 'connected';
+      saveAnswers();
+      render();
+    }
+  } catch (e) {
+    console.warn('Neon DB answers sync failed:', e);
+    state.neonStatus = 'error';
+  }
 }
 
 // Initialize State merging logic with static DB and local storage answers
@@ -206,26 +256,17 @@ async function init() {
     };
   });
 
-  // Merge year_map.json into localStorage if present (don't override user edits)
-  try {
-    const resp = await fetch('assets/year_map.json', {cache: 'no-store'});
-    if (resp.ok) {
-      const remoteMap = await resp.json();
-      const localMap = loadYearMap();
-      const merged = Object.assign({}, remoteMap, localMap);
-      // only write if localMap was empty or remote added new entries
-      if (Object.keys(merged).length > Object.keys(localMap).length) {
-        saveYearMap(merged);
-      }
-    }
-  } catch (e) {
-    // ignore fetch errors (app still works)
-    console.warn('Could not load year_map.json', e && e.message);
-  }
+
 
   loadDataFromDB();
   setupEventListeners();
   await fetchMe();
+  await fetchAnswers();
+  document.documentElement.setAttribute('data-theme', state.theme);
+  if (!state.currentUser) {
+    state.settingsOpen = true;
+    state.authMode = 'signin';
+  }
   render();
 }
 
@@ -327,6 +368,31 @@ function toggleSettings() {
   render();
 }
 
+function toggleKeyVisibility(fieldName) {
+  const inp = document.querySelector(`input[name="${fieldName}"]`);
+  if (!inp) return;
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  const btn = document.getElementById(`toggle-${fieldName}`);
+  if (btn) {
+    const icon = btn.querySelector('i');
+    if (icon) {
+      icon.className = inp.type === 'password' ? 'ph-bold ph-eye' : 'ph-bold ph-eye-slash';
+    }
+  }
+}
+
+function toggleStats() {
+  state.headerStatsOpen = !state.headerStatsOpen;
+  render();
+}
+
+function toggleTheme() {
+  state.theme = state.theme === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('theme', state.theme);
+  document.documentElement.setAttribute('data-theme', state.theme);
+  render();
+}
+
 function openAuthMode(mode) {
   state.authMode = mode;
   state.settingsOpen = true;
@@ -346,27 +412,44 @@ function saveSettings(e) {
   const groqKey = formData.get('groqKey')?.trim() || '';
   const turbo = formData.get('useTurbo') === 'on';
   const neonEnabled = formData.get('useNeon') === 'on';
-  // Save toggles locally; save API keys to server if signed in
+
+  // Save settings in state and localStorage
   localStorage.setItem('use_turbo', turbo);
   localStorage.setItem('neon_enabled', neonEnabled);
   state.useTurbo = turbo;
   state.neonEnabled = neonEnabled;
 
-  if (state.currentUser) {
-    // Save keys server-side
-    saveUserKeys(key || null, groqKey || null).then(()=>{
-      state.apiKey = '';
-      state.groqKey = '';
-      toggleSettings();
-    }).catch(err=>{ alert('Failed to save keys: '+(err.message||err)); });
-  } else {
+  // Only save to localStorage and state if the user entered a real, unmasked key
+  if (key && !key.includes('•')) {
     localStorage.setItem('or_api_key', key);
-    localStorage.setItem('groq_api_key', groqKey);
     state.apiKey = key;
+  }
+  if (groqKey && !groqKey.includes('•')) {
+    localStorage.setItem('groq_api_key', groqKey);
     state.groqKey = groqKey;
+  }
+
+  if (state.currentUser) {
+    const apiToBackup = (key && !key.includes('•')) ? key : null;
+    const groqToBackup = (groqKey && !groqKey.includes('•')) ? groqKey : null;
+    
+    // Only call server backup if they actually provided new keys
+    if (apiToBackup || groqToBackup) {
+      saveUserKeys(apiToBackup, groqToBackup).then(()=>{
+        fetchAnswers();
+        toggleSettings();
+      }).catch(err=>{ alert('Failed to backup keys on server: '+(err.message||err)); });
+    } else {
+      fetchAnswers();
+      toggleSettings();
+    }
+  } else {
+    fetchAnswers();
     toggleSettings();
   }
 }
+
+
 
 async function handleSignIn(e) {
   e.preventDefault();
@@ -383,6 +466,7 @@ async function handleSignIn(e) {
     state.sessionToken = data.token;
     localStorage.setItem('session_token', data.token);
     await fetchMe();
+    await fetchAnswers();
     toggleSettings();
   } catch (e) { alert('Sign in failed'); }
 }
@@ -399,6 +483,7 @@ async function handleSignUp(e) {
     state.sessionToken = data.token;
     localStorage.setItem('session_token', data.token);
     await fetchMe();
+    await fetchAnswers();
     toggleSettings();
   } catch (e) { alert('Sign up failed'); }
 }
@@ -407,6 +492,11 @@ function signOut() {
   state.sessionToken = '';
   localStorage.removeItem('session_token');
   setCurrentUser(null);
+  const savedAnswers = JSON.parse(localStorage.getItem('csit_answers') || '{}');
+  SUBJECTS.forEach(sub => {
+    state.subjects[sub.id].answers = savedAnswers[sub.id] || {};
+  });
+  fetchAnswers();
   render();
 }
 
@@ -425,10 +515,18 @@ async function handleGenerateAnswer(subjectId, questionIndex) {
       subject.questions[questionIndex] = qObj;
   }
 
-  if (!state.useTurbo && !state.apiKey) {
-    alert("Please set your OpenRouter API Key in settings first.");
-    toggleSettings();
-    return;
+  if (state.useTurbo) {
+    if (!state.groqKey) {
+      alert("Please set your Groq API Key in settings first for Turbo Mode.");
+      toggleSettings();
+      return;
+    }
+  } else {
+    if (!state.apiKey) {
+      alert("Please set your OpenRouter API Key in settings first.");
+      toggleSettings();
+      return;
+    }
   }
 
   qObj.generating = true;
@@ -471,10 +569,18 @@ async function sendToNeon(subjectId, questionText, answerText) {
 
 async function handleGenerateAll(subjectId) {
   const subject = state.subjects[subjectId];
-  if (!state.useTurbo && !state.apiKey) {
-    alert("Please set your OpenRouter API Key in settings first.");
-    toggleSettings();
-    return;
+  if (state.useTurbo) {
+    if (!state.groqKey) {
+      alert("Please set your Groq API Key in settings first for Turbo Mode.");
+      toggleSettings();
+      return;
+    }
+  } else {
+    if (!state.apiKey) {
+      alert("Please set your OpenRouter API Key in settings first.");
+      toggleSettings();
+      return;
+    }
   }
 
   const unanswered = subject.questions.filter(q => {
@@ -520,28 +626,7 @@ const aiPromptBuilder = (questionText, ai) => {
 
 // UI Components
 function renderStats() {
-  let totalQs = 0;
-  let totalAns = 0;
-
-  SUBJECTS.forEach(sub => {
-    const qs = state.subjects[sub.id].questions.length;
-    const ans = Object.keys(state.subjects[sub.id].answers).length;
-    totalQs += qs;
-    totalAns += ans;
-  });
-
-  if (!state.headerStatsOpen) {
-    return `<button class="btn btn-outline" onclick="toggleStats()" aria-label="Show stats"><i class="ph-bold ph-list"></i></button>`;
-  }
-
-  return `
-    <div class="stats-popover">
-      <div><strong>TOTAL:</strong> ${totalQs}</div>
-      <div><strong>DONE:</strong> ${totalAns}</div>
-      <div class="stats-bar"><div class="stats-bar-fill" style="width: ${totalQs ? (totalAns/totalQs)*100 : 0}%"></div></div>
-      <div style="margin-top:8px; text-align:right;"><button class="btn" onclick="toggleStats()">Close</button></div>
-    </div>
-  `;
+  return '';
 }
 
 function renderSettingsModal() {
@@ -550,35 +635,42 @@ function renderSettingsModal() {
     const isSignIn = state.authMode !== 'signup';
     return `
       <div class="modal-overlay" onclick="toggleSettings()"></div>
-      <div class="modal card">
+      <div class="modal card animate-fade">
         <div class="modal-header">
-          <h2>${isSignIn ? 'Sign in' : 'Sign up'}</h2>
+          <h2>${isSignIn ? 'Sign In' : 'Create Account'}</h2>
           <button class="btn btn-secondary" onclick="toggleSettings()" style="padding: 5px 10px;">X</button>
         </div>
-        <p style="color:var(--text-muted); margin-bottom:16px;">${isSignIn ? 'Use your existing account to continue.' : 'Create an account so you can save answers and store your API keys per user.'}</p>
+        <p style="color:var(--text-muted); margin-bottom:20px; font-size:14px;">
+          ${isSignIn ? 'Sign in to save your model answers and sync keys securely.' : 'Create an account so you can save answers and store your API keys per user.'}
+        </p>
         ${isSignIn ? `
           <div style="display:flex; gap:12px; flex-direction:column;">
             <form onsubmit="handleSignIn(event)">
-              <div class="form-group"><label>Email</label><input name="email" class="input-brutal" required></div>
-              <div class="form-group"><label>Password</label><input name="password" type="password" class="input-brutal" required></div>
-              <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                <button class="btn btn-primary" type="submit">Sign in</button>
-                <button class="btn" type="button" onclick="setAuthMode('signup')">Create account</button>
+              <div class="form-group"><label>Email Address</label><input name="email" type="email" placeholder="you@example.com" class="input-brutal" required></div>
+              <div class="form-group"><label>Password</label><input name="password" type="password" placeholder="••••••••" class="input-brutal" required></div>
+              <div style="display:flex; flex-direction:column; gap:10px; margin-top:8px;">
+                <button class="btn btn-primary" type="submit" style="width: 100%; justify-content: center;">Sign In</button>
+                <button class="btn btn-secondary" type="button" onclick="setAuthMode('signup')" style="width: 100%; justify-content: center;">Create New Account</button>
               </div>
             </form>
           </div>
         ` : `
           <div style="display:flex; gap:12px; flex-direction:column;">
             <form onsubmit="handleSignUp(event)">
-              <div class="form-group"><label>Email</label><input name="email" class="input-brutal" required></div>
-              <div class="form-group"><label>Password</label><input name="password" type="password" class="input-brutal" required></div>
-              <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                <button class="btn btn-primary" type="submit">Sign up</button>
-                <button class="btn" type="button" onclick="setAuthMode('signin')">I already have an account</button>
+              <div class="form-group"><label>Email Address</label><input name="email" type="email" placeholder="you@example.com" class="input-brutal" required></div>
+              <div class="form-group"><label>Password</label><input name="password" type="password" placeholder="••••••••" class="input-brutal" required></div>
+              <div style="display:flex; flex-direction:column; gap:10px; margin-top:8px;">
+                <button class="btn btn-primary" type="submit" style="width: 100%; justify-content: center;">Create Account</button>
+                <button class="btn btn-secondary" type="button" onclick="setAuthMode('signin')" style="width: 100%; justify-content: center;">Back to Sign In</button>
               </div>
             </form>
           </div>
         `}
+        <div style="text-align:center; margin-top: 20px; border-top: 1px solid var(--border); padding-top: 16px;">
+          <a href="#" onclick="toggleSettings(); return false;" style="color:var(--primary); font-weight:600; text-decoration:none; font-size:14px;">
+             Or continue as Guest <i class="ph-bold ph-arrow-right" style="vertical-align:middle; margin-left:4px;"></i>
+          </a>
+        </div>
       </div>
     `;
   }
@@ -586,6 +678,13 @@ function renderSettingsModal() {
   // If user logged in, show account and API key settings
   const apiToggleChecked = state.useTurbo ? 'checked' : '';
   const neonChecked = state.neonEnabled ? 'checked' : '';
+
+  const apiPlaceholder = state.currentUser && state.userKeys && state.userKeys.api_key_masked
+    ? `Saved on Server: ${state.userKeys.api_key_masked}`
+    : "sk-or-... (optional if Turbo enabled)";
+  const groqPlaceholder = state.currentUser && state.userKeys && state.userKeys.groq_key_masked
+    ? `Saved on Server: ${state.userKeys.groq_key_masked}`
+    : "gsk_...";
 
   const accountSection = `
     <div style="display:flex; flex-direction:column; gap:10px;">
@@ -604,7 +703,12 @@ function renderSettingsModal() {
       <form onsubmit="saveSettings(event)" style="display:flex; flex-direction: column; gap: 16px;">
         <div class="form-group">
           <label>OpenRouter API Key (Standard)</label>
-          <input type="password" name="apiKey" value="${state.currentUser && state.userKeys && state.userKeys.api_key_masked ? state.userKeys.api_key_masked : (state.apiKey||'')}" class="input-brutal" placeholder="sk-or-... (optional if Turbo enabled)">
+          <div class="key-input-wrap">
+            <input type="password" name="apiKey" value="${state.apiKey || ''}" class="input-brutal" placeholder="${apiPlaceholder}">
+            <button type="button" id="toggle-apiKey" class="btn btn-eye" onclick="toggleKeyVisibility('apiKey')" title="Toggle visibility">
+              <i class="ph-bold ph-eye"></i>
+            </button>
+          </div>
           <small>Get a free key from <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai</a></small>
         </div>
 
@@ -617,7 +721,12 @@ function renderSettingsModal() {
 
         <div class="form-group" style="${state.useTurbo ? '' : 'opacity:0.7'}">
           <label>Groq API Key</label>
-          <input type="password" name="groqKey" value="${state.currentUser && state.userKeys && state.userKeys.groq_key_masked ? state.userKeys.groq_key_masked : (state.groqKey||'')}" class="input-brutal" placeholder="gsk_...">
+          <div class="key-input-wrap">
+            <input type="password" name="groqKey" value="${state.groqKey || ''}" class="input-brutal" placeholder="${groqPlaceholder}">
+            <button type="button" id="toggle-groqKey" class="btn btn-eye" onclick="toggleKeyVisibility('groqKey')" title="Toggle visibility">
+              <i class="ph-bold ph-eye"></i>
+            </button>
+          </div>
         </div>
 
         <div class="form-group">
@@ -674,7 +783,7 @@ function renderQuestionList() {
   if (state.selectedYear && state.selectedYear !== 'all') {
       const sel = state.selectedYear;
       processedQs = processedQs.filter(q => {
-          const y = getYearForQuestion(q.text) || 'unknown';
+          const y = q.obj.year || getYearForQuestion(q.text) || 'unknown';
           if (sel === 'unknown') return !y || y === 'unknown';
           return String(y) === String(sel);
       });
@@ -700,6 +809,11 @@ function renderQuestionList() {
       ? '<span class="status-badge badge-answered"><i class="ph-bold ph-check-circle"></i> ANSWERED</span>'
       : '<span class="status-badge badge-unanswered"><i class="ph-bold ph-clock"></i> UNANSWERED</span>';
 
+    const yearVal = q.obj.year || getYearForQuestion(q.text) || 'Unknown';
+    const typeVal = q.obj.type || 'General Questions';
+    const yearBadge = `<span class="status-badge badge-year"><i class="ph-bold ph-calendar"></i> ${yearVal}</span>`;
+    const typeBadge = `<span class="status-badge badge-type"><i class="ph-bold ph-tag"></i> ${typeVal}</span>`;
+
     const renderAiLinksHelper = () => {
       return `
         <div class="ai-links">
@@ -719,7 +833,7 @@ function renderQuestionList() {
         <button class="btn btn-secondary" onclick="toggleAnswer('${state.activeSubject}', ${q.originalIdx})">
           ${q.obj.expanded ? '<i class="ph-bold ph-caret-up"></i> Hide Answer' : '<i class="ph-bold ph-caret-down"></i> Show Answer'}
         </button>
-        <button class="btn" onclick="handleGenerateAnswer('${state.activeSubject}', ${q.originalIdx})"><i class="ph-bold ph-arrows-clockwise"></i> Regenerate</button>
+        <button class="btn btn-regenerate" onclick="handleGenerateAnswer('${state.activeSubject}', ${q.originalIdx})"><i class="ph-bold ph-arrows-clockwise"></i> Regenerate</button>
         ${renderAiLinksHelper()}
       `;
       
@@ -752,9 +866,11 @@ function renderQuestionList() {
 
     return `
       <div class="card question-card">
-        <div class="question-header">
+        <div class="question-header" style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
           <div class="q-number">Q${displayIdx + 1}</div>
           ${badgeHtml}
+          ${yearBadge}
+          ${typeBadge}
         </div>
         ${renderQuestionContent(q.text)}
         ${errorHtml}
@@ -771,38 +887,41 @@ function renderQuestionList() {
 // Main Render Function
 function render() {
   const container = document.getElementById('app');
-  // If user is not signed in, show onboarding/sign-in screen only
-  if (!state.currentUser) {
-    container.innerHTML = `
-      <div style="display:flex; align-items:center; justify-content:center; min-height:60vh; padding: 20px;">
-        <div class="card" style="max-width:640px; width:100%; padding:28px; text-align:left;">
-          <h2 style="margin-bottom:8px;">CSIT 7th Sem — Question Bank</h2>
-          <p style="color:var(--text-muted); margin-bottom:12px;">This app stores curated exam questions and lets students generate AI-assisted model answers. Create an account to save your answers and securely store your OpenRouter/Groq API keys for generating answers. Answers you generate can be saved to the shared Neon database (server-side).</p>
-          <ul style="color:var(--text-muted); margin: 8px 0 14px 20px;">
-            <li>Sign up: create an account and securely store your API keys on the server.</li>
-            <li>Generate: use ChatGPT/Groq from the UI to create exam-style answers.</li>
-            <li>Save: answers are stored per-user in the Neon DB configured on the server.</li>
-          </ul>
-          <div style="display:flex; gap:12px; margin-top:8px;">
-            <button class="btn btn-primary" onclick="openAuthMode('signin')">Sign in</button>
-            <button class="btn" onclick="openAuthMode('signup')">Sign up</button>
-          </div>
-        </div>
-      </div>
-      ${renderSettingsModal()}
-    `;
-    return;
-  }
 
   const currentSub = state.subjects[state.activeSubject];
   const totalQs = currentSub.questions.length;
   const answeredQs = Object.keys(currentSub.answers).length;
 
+  let neonIndicator = '';
+  if (state.neonStatus === 'connected') {
+    neonIndicator = `<span class="db-badge connected" title="Neon DB Sync Active"><span class="pulse-dot"></span> NEON ONLINE</span>`;
+  } else if (state.neonStatus === 'error') {
+    neonIndicator = `<span class="db-badge error" title="Neon DB Sync Error">NEON OFFLINE</span>`;
+  } else {
+    neonIndicator = `<span class="db-badge unconfigured" title="Neon DB Unconfigured">LOCAL ONLY</span>`;
+  }
+
+  let authControl = '';
+  if (state.currentUser) {
+    authControl = `
+      <div class="user-profile" onclick="toggleSettings()">
+        <div class="avatar"><i class="ph-bold ph-user-circle"></i></div>
+        <span class="user-email" title="${escapeHtml(state.currentUser.email)}">${escapeHtml(state.currentUser.email.split('@')[0])}</span>
+      </div>
+    `;
+  } else {
+    authControl = `
+      <button class="btn btn-secondary btn-login" onclick="openAuthMode('signin')">
+        <i class="ph-bold ph-sign-in"></i> Sign In
+      </button>
+    `;
+  }
+
   container.innerHTML = `
     <header class="header">
       <div class="header-content">
         <div style="display:flex; align-items:center; gap:16px;">
-          <svg width="52" height="52" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+          <svg width="42" height="42" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
             <rect x="1.5" y="1.5" width="21" height="21" rx="6" fill="var(--primary)" />
             <path d="M7 9h10v1H7zM7 12h6v1H7z" fill="white" />
           </svg>
@@ -811,8 +930,12 @@ function render() {
             <p class="subtitle" style="margin:4px 0 0;">Curated exam questions with AI-assisted answers</p>
           </div>
         </div>
-          <div class="header-controls">
-          ${renderStats()}
+        <div class="header-controls">
+          ${neonIndicator}
+          ${authControl}
+          <button class="btn btn-ghost" onclick="toggleTheme()" aria-label="Toggle Theme" title="Toggle Theme">
+            <i class="ph-bold ${state.theme === 'dark' ? 'ph-sun' : 'ph-moon'}" style="font-size:18px"></i>
+          </button>
           <button class="btn btn-ghost" onclick="toggleSettings()" aria-label="Settings" title="Settings">
             <i class="ph-bold ph-gear" style="font-size:18px"></i>
           </button>
@@ -822,53 +945,81 @@ function render() {
 
     ${renderSettingsModal()}
 
-    <main class="main-content">
-      <div class="tabs">
-        ${renderTabs()}
-      </div>
-
-      <div class="subject-header">
-        <div>
-          <h2>${currentSub.title}</h2>
-          <p class="stats-text">${totalQs} Questions • ${answeredQs} Answered</p>
+    <div class="dashboard-layout">
+      <aside class="sidebar-panel">
+        <div class="sidebar-section">
+          <h3>Subjects</h3>
+          <div class="tabs">
+            ${renderTabs()}
+          </div>
         </div>
-          <div style="display: flex; gap: 10px; align-items:center;">
+
+        <div class="sidebar-section quick-stats-card">
+          <h3>Quick Stats</h3>
+          <div class="stats-grid">
+            <div class="stat-box">
+              <span class="stat-num">${totalQs}</span>
+              <span class="stat-lbl">Questions</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-num glow-green">${answeredQs}</span>
+              <span class="stat-lbl">Answered</span>
+            </div>
+          </div>
+          <div class="progress-bar-container">
+            <div class="progress-fill" style="width: ${totalQs ? (answeredQs / totalQs) * 100 : 0}%"></div>
+          </div>
+          <span class="progress-pct">${totalQs ? Math.round((answeredQs / totalQs) * 100) : 0}% Mastered</span>
+        </div>
+      </aside>
+
+      <main class="content-panel">
+        <div class="subject-header">
+          <div>
+            <h2>${currentSub.title}</h2>
+            <p class="stats-text">${totalQs} Questions • ${answeredQs} Answered</p>
+          </div>
+          <div style="display: flex; gap: 10px; align-items:center; flex-wrap:wrap;">
             <button class="btn btn-primary btn-glow" onclick="handleGenerateAll('${state.activeSubject}')" ${state.isGeneratingAll ? 'disabled' : ''}>
               ${state.isGeneratingAll ? '<i class="ph-bold ph-spinner ph-spin"></i> Generating...' : '<i class="ph-bold ph-lightning"></i> Generate All Missing'}
             </button>
             <button class="btn btn-primary btn-glow" onclick="window.print()"><i class="ph-bold ph-printer"></i> Export PDF</button>
           </div>
-      </div>
-
-      <div style="margin:16px 0 24px; display:flex; gap:8px; flex-wrap:wrap;">
-        ${getYearsForSubject(state.activeSubject).map(y => {
-          const label = String(y) === 'unknown' ? 'No Year' : String(y);
-          const sel = String(state.selectedYear || 'all');
-          return `<button class="year-pill ${sel === String(y) ? 'active' : ''}" onclick="setYearFilter('${y}')">${label}</button>`;
-        }).join('')}
-      </div>
-
-      <div class="controls-bar">
-         <div class="search-wrap">
-           <i class="ph-bold ph-magnifying-glass search-icon"></i>
-           <input type="text" 
-           class="search-bar input-brutal" 
-           placeholder="Search questions..." 
-           value="${state.search}"
-           oninput="setSearch(this.value)">
-         </div>
-               
-        <div class="filters">
-          <button class="filter-btn ${state.filter === 'all' ? 'active' : ''}" onclick="setFilter('all')">All</button>
-          <button class="filter-btn ${state.filter === 'unanswered' ? 'active' : ''}" onclick="setFilter('unanswered')">Unanswered</button>
-          <button class="filter-btn ${state.filter === 'answered' ? 'active' : ''}" onclick="setFilter('answered')">Answered <span>${answeredQs}</span></button>
         </div>
-      </div>
 
-      <div class="question-list">
-        ${renderQuestionList()}
-      </div>
-    </main>
+        <div class="year-filters-section">
+          <span class="section-label">Exam Year:</span>
+          <div class="year-pills-list">
+            ${getYearsForSubject(state.activeSubject).map(y => {
+              const label = String(y) === 'unknown' ? 'No Year' : String(y);
+              const sel = String(state.selectedYear || 'all');
+              return `<button class="year-pill ${sel === String(y) ? 'active' : ''}" onclick="setYearFilter('${y}')">${label}</button>`;
+            }).join('')}
+          </div>
+        </div>
+
+        <div class="controls-bar">
+          <div class="search-wrap">
+            <i class="ph-bold ph-magnifying-glass search-icon"></i>
+            <input type="text" 
+            class="search-bar input-brutal" 
+            placeholder="Search questions..." 
+            value="${state.search}"
+            oninput="setSearch(this.value)">
+          </div>
+                 
+          <div class="filters">
+            <button class="filter-btn ${state.filter === 'all' ? 'active' : ''}" onclick="setFilter('all')">All</button>
+            <button class="filter-btn ${state.filter === 'unanswered' ? 'active' : ''}" onclick="setFilter('unanswered')">Unanswered</button>
+            <button class="filter-btn ${state.filter === 'answered' ? 'active' : ''}" onclick="setFilter('answered')">Answered <span>${answeredQs}</span></button>
+          </div>
+        </div>
+
+        <div class="question-list">
+          ${renderQuestionList()}
+        </div>
+      </main>
+    </div>
   `;
   
   setTimeout(() => {

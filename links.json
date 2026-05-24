@@ -1,1 +1,35 @@
-{"advanced-java":["https://hamrocsit.com/semester/seventh/advanced-java//question-bank/2082","https://hamrocsit.com/semester/seventh/advanced-java//question-bank/2081","https://hamrocsit.com/semester/seventh/advanced-java//question-bank/2080","https://hamrocsit.com/semester/seventh/advanced-java//question-bank/2079","https://hamrocsit.com/semester/seventh/advanced-java//question-bank/2078","https://hamrocsit.com/semester/seventh/advanced-java//question-bank/2077"],"data-mining":[],"pom":[],"software-project-management":[]}
+{
+  "advanced-java": [
+    "https://hamrocsit.com/semester/seventh/advanced-java//question-bank/2082",
+    "https://hamrocsit.com/semester/seventh/advanced-java//question-bank/Model-Set-II",
+    "https://hamrocsit.com/semester/seventh/advanced-java//question-bank/2081",
+    "https://hamrocsit.com/semester/seventh/advanced-java//question-bank/2080",
+    "https://hamrocsit.com/semester/seventh/advanced-java//question-bank/model-set",
+    "https://hamrocsit.com/semester/seventh/advanced-java//question-bank/2079",
+    "https://hamrocsit.com/semester/seventh/advanced-java//question-bank/2078",
+    "https://hamrocsit.com/semester/seventh/advanced-java//question-bank/2077"
+  ],
+  "data-mining": [
+    "https://hamrocsit.com/semester/seventh/data-mining//question-bank/2082",
+    "https://hamrocsit.com/semester/seventh/data-mining//question-bank/model-set",
+    "https://hamrocsit.com/semester/seventh/data-mining//question-bank/2081",
+    "https://hamrocsit.com/semester/seventh/data-mining//question-bank/dwdm-model-set",
+    "https://hamrocsit.com/semester/seventh/data-mining//question-bank/2080",
+    "https://hamrocsit.com/semester/seventh/data-mining//question-bank/2079",
+    "https://hamrocsit.com/semester/seventh/data-mining//question-bank/2078"
+  ],
+  "pom": [
+    "https://hamrocsit.com/semester/seventh/pom//question-bank/2082",
+    "https://hamrocsit.com/semester/seventh/pom//question-bank/2081",
+    "https://hamrocsit.com/semester/seventh/pom//question-bank/Model-Question",
+    "https://hamrocsit.com/semester/seventh/pom//question-bank/2080",
+    "https://hamrocsit.com/semester/seventh/pom//question-bank/2079",
+    "https://hamrocsit.com/semester/seventh/pom//question-bank/2078"
+  ],
+  "software-project-management": [
+    "https://hamrocsit.com/semester/seventh/software-project-management//question-bank/2081",
+    "https://hamrocsit.com/semester/seventh/software-project-management//question-bank/2080",
+    "https://hamrocsit.com/semester/seventh/software-project-management//question-bank/2079",
+    "https://hamrocsit.com/semester/seventh/software-project-management//question-bank/2078"
+  ]
+}

@@ -95,12 +95,44 @@ app.post('/saveAnswer', async (req, res) => {
         DO UPDATE SET answer = EXCLUDED.answer, created_at = now()
       `, [userId, subject, question, answer]);
     } else {
-      await pool.query('INSERT INTO answers(subject, question, answer) VALUES($1,$2,$3)', [subject, question, answer]);
+      const existing = await pool.query('SELECT id FROM answers WHERE user_id IS NULL AND subject=$1 AND question=$2', [subject, question]);
+      if (existing.rows.length) {
+        await pool.query('UPDATE answers SET answer=$1, created_at=now() WHERE id=$2', [answer, existing.rows[0].id]);
+      } else {
+        await pool.query('INSERT INTO answers(subject, question, answer) VALUES($1,$2,$3)', [subject, question, answer]);
+      }
     }
     return res.json({ ok: true });
   } catch (e) {
     console.error('Neon insert failed', e);
     return res.status(500).json({ error: 'Insert failed' });
+  }
+});
+
+app.get('/answers', async (req, res) => {
+  if (!pool) return res.status(503).json({ error: 'Neon not configured' });
+  try {
+    const auth = req.headers['authorization'];
+    let userId = null;
+    if (auth && auth.startsWith('Bearer ')) {
+      const token = auth.slice(7);
+      const r = await pool.query('SELECT id FROM users WHERE token=$1', [token]);
+      if (r.rows.length) userId = r.rows[0].id;
+    }
+
+    let query, params;
+    if (userId) {
+      query = `SELECT subject, question, answer, user_id FROM answers WHERE user_id = $1 OR user_id IS NULL ORDER BY created_at DESC`;
+      params = [userId];
+    } else {
+      query = `SELECT subject, question, answer, user_id FROM answers WHERE user_id IS NULL ORDER BY created_at DESC`;
+      params = [];
+    }
+    const r = await pool.query(query, params);
+    return res.json({ ok: true, answers: r.rows });
+  } catch (e) {
+    console.error('Fetch answers failed', e);
+    return res.status(500).json({ error: 'Fetch failed' });
   }
 });
 
