@@ -732,13 +732,17 @@ function render() {
   // If user is not signed in, show onboarding/sign-in screen only
   if (!state.currentUser) {
     container.innerHTML = `
-      <div style="display:flex; align-items:center; justify-content:center; min-height:60vh;">
-        <div class="card" style="max-width:520px; width:100%; padding:28px; text-align:left;">
-          <h2>Welcome — Please sign in</h2>
-          <p style="color:var(--text-muted);">Sign in or create an account to continue. Your API keys will be stored securely per account.</p>
-          <div style="display:flex; gap:12px; margin-top:18px;">
+      <div style="display:flex; align-items:center; justify-content:center; min-height:60vh; padding: 20px;">
+        <div class="card" style="max-width:640px; width:100%; padding:28px; text-align:left;">
+          <h2 style="margin-bottom:8px;">CSIT 7th Sem — Question Bank</h2>
+          <p style="color:var(--text-muted); margin-bottom:12px;">This app stores curated exam questions and lets students generate AI-assisted model answers. Create an account to save your answers and securely store your OpenRouter/Groq API keys for generating answers. Answers you generate can be saved to the shared Neon database (server-side).</p>
+          <ul style="color:var(--text-muted); margin: 8px 0 14px 20px;">
+            <li>Sign up: create an account and securely store your API keys on the server.</li>
+            <li>Generate: use ChatGPT/Groq from the UI to create exam-style answers.</li>
+            <li>Save: answers are stored per-user in the Neon DB configured on the server.</li>
+          </ul>
+          <div style="display:flex; gap:12px; margin-top:8px;">
             <button class="btn btn-primary" onclick="toggleSettings()">Sign in / Sign up</button>
-            <button class="btn" onclick="() => { /* optionally show info */ }">Learn more</button>
           </div>
         </div>
       </div>
