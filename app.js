@@ -687,9 +687,15 @@ function renderSettingsModal() {
     : "gsk_...";
 
   const accountSection = `
-    <div style="display:flex; flex-direction:column; gap:10px;">
-      <div style="font-weight:700">Signed in as ${escapeHtml(state.currentUser.email)}</div>
-      <div style="display:flex; gap:8px;"><button class="btn" onclick="signOut()">Sign out</button></div>
+    <div class="account-section">
+      <div class="account-info">
+        <i class="ph-bold ph-user-circle" style="font-size:20px; color:var(--primary);"></i>
+        <div>
+          <div style="font-size:11px; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:0.05em;">Signed in as</div>
+          <div style="font-weight:700; font-size:14px;">${escapeHtml(state.currentUser.email)}</div>
+        </div>
+      </div>
+      <button class="btn btn-signout" onclick="signOut()"><i class="ph-bold ph-sign-out"></i> Sign out</button>
     </div>
   `;
 

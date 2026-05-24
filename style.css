@@ -1007,6 +1007,43 @@ button, .btn, a.btn {
   color: var(--text-main);
 }
 
+/* Account section in settings modal */
+.account-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+[data-theme="light"] .account-section {
+  background: rgba(0, 0, 0, 0.02);
+}
+.account-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Sign out button — clean danger-tinted style */
+.btn-signout {
+  background: rgba(255, 69, 58, 0.06);
+  color: var(--danger);
+  border: 1px solid rgba(255, 69, 58, 0.2);
+  font-size: 12.5px;
+  padding: 7px 14px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.btn-signout:hover {
+  background: rgba(255, 69, 58, 0.12);
+  border-color: rgba(255, 69, 58, 0.4);
+  transform: translateY(-1px);
+}
+
 .answer-state.error {
   color: var(--danger); 
   border: 1px solid rgba(255, 69, 58, 0.2);
