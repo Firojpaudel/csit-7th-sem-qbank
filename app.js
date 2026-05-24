@@ -506,14 +506,27 @@ async function handleSignUp(e) {
 }
 
 function signOut() {
+  // Clear session
   state.sessionToken = '';
   localStorage.removeItem('session_token');
-  setCurrentUser(null);
-  const savedAnswers = JSON.parse(localStorage.getItem('csit_answers') || '{}');
+
+  // ✅ Wipe API keys from memory AND localStorage so no guest can reuse them
+  state.apiKey = '';
+  state.groqKey = '';
+  state.userKeys = {};
+  localStorage.removeItem('or_api_key');
+  localStorage.removeItem('groq_api_key');
+
+  // Clear answers that came from Neon (they belong to the signed-in user)
   SUBJECTS.forEach(sub => {
-    state.subjects[sub.id].answers = savedAnswers[sub.id] || {};
+    state.subjects[sub.id].answers = {};
   });
-  fetchAnswers();
+  localStorage.removeItem('csit_answers');
+
+  setCurrentUser(null);
+  state.neonStatus = 'unconfigured';
+  state.settingsOpen = true;
+  state.authMode = 'signin';
   render();
 }
 
