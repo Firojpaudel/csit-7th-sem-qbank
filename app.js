@@ -9,9 +9,14 @@ const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_MODEL = 'llama-3.3-70b-versatile';
 const MODEL = 'openrouter/free';
-const API_BASE = localStorage.getItem('api_base') || (window.location.hostname.includes('.app.github.dev')
-  ? window.location.origin.replace('-5500.', '-3000.')
-  : 'http://localhost:3000');
+const API_BASE = localStorage.getItem('api_base') || (
+  window.location.hostname.includes('.app.github.dev')
+    ? window.location.origin.replace('-5500.', '-3000.')
+    : (window.location.hostname.includes('firojpaudel.com.np') || window.location.hostname.includes('onrender.com')
+        ? 'https://csit-7th-sem-qbank.onrender.com'
+        : (window.location.port ? `${window.location.protocol}//${window.location.hostname}:3000` : 'http://localhost:3000'))
+);
+
 
 let state = {
   apiKey: localStorage.getItem('or_api_key') || '',
@@ -56,35 +61,73 @@ async function fetchMe() {
 async function fetchUserKeys() {
   if (!state.sessionToken) return;
   try {
+    console.log('[Keys Sync] Syncing keys from server...');
     // 1. Get masked versions for settings display
     const resp = await fetch(`${API_BASE}/me/keys`, { headers: { 'Authorization': `Bearer ${state.sessionToken}` } });
     if (resp.ok) {
       const data = await resp.json();
       state.userKeys = data || {};
+      console.log('[Keys Sync] Masked keys loaded:', state.userKeys);
     }
 
     // 2. Get full decrypted keys and restore them silently
     const fullResp = await fetch(`${API_BASE}/me/keys/full`, { headers: { 'Authorization': `Bearer ${state.sessionToken}` } });
     if (fullResp.ok) {
       const full = await fullResp.json();
-      // Only restore if the user doesn't already have the key locally (or if server has a newer/different one)
-      if (full.apiKey && (!state.apiKey || state.apiKey !== full.apiKey)) {
-        state.apiKey = full.apiKey;
-        localStorage.setItem('or_api_key', full.apiKey);
+      console.log('[Keys Sync] Full keys fetched:', { hasApi: !!full.apiKey, hasGroq: !!full.groqKey });
+      
+      let needsUpload = false;
+      let uploadApi = null;
+      let uploadGroq = null;
+
+      // Handle OpenRouter API Key
+      if (full.apiKey) {
+        if (state.apiKey !== full.apiKey) {
+          console.log('[Keys Sync] Restoring OpenRouter key from server');
+          state.apiKey = full.apiKey;
+          localStorage.setItem('or_api_key', full.apiKey);
+        }
+      } else if (state.apiKey) {
+        console.log('[Keys Sync] Server is missing OpenRouter key, queueing upload of local key');
+        needsUpload = true;
+        uploadApi = state.apiKey;
       }
-      if (full.groqKey && (!state.groqKey || state.groqKey !== full.groqKey)) {
-        state.groqKey = full.groqKey;
-        localStorage.setItem('groq_api_key', full.groqKey);
+
+      // Handle Groq API Key
+      if (full.groqKey) {
+        if (state.groqKey !== full.groqKey) {
+          console.log('[Keys Sync] Restoring Groq key from server');
+          state.groqKey = full.groqKey;
+          localStorage.setItem('groq_api_key', full.groqKey);
+        }
+      } else if (state.groqKey) {
+        console.log('[Keys Sync] Server is missing Groq key, queueing upload of local key');
+        needsUpload = true;
+        uploadGroq = state.groqKey;
+      }
+
+      if (needsUpload) {
+        console.log('[Keys Sync] Uploading local keys to database backup...');
+        await saveUserKeys(uploadApi || state.apiKey, uploadGroq || state.groqKey, true);
+        const resp2 = await fetch(`${API_BASE}/me/keys`, { headers: { 'Authorization': `Bearer ${state.sessionToken}` } });
+        if (resp2.ok) {
+          state.userKeys = await resp2.json() || {};
+        }
       }
     }
-  } catch (e) { state.userKeys = {}; }
+  } catch (e) {
+    console.error('[Keys Sync] Error syncing keys:', e);
+    state.userKeys = {};
+  }
 }
 
-async function saveUserKeys(apiKey, groqKey) {
+async function saveUserKeys(apiKey, groqKey, skipRefetch = false) {
   if (!state.sessionToken) throw new Error('Not signed in');
   const resp = await fetch(`${API_BASE}/me/keys`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.sessionToken}` }, body: JSON.stringify({ apiKey, groqKey }) });
   if (!resp.ok) throw new Error('Could not save keys');
-  await fetchUserKeys();
+  if (!skipRefetch) {
+    await fetchUserKeys();
+  }
 }
 
 // Utilities for rendering
