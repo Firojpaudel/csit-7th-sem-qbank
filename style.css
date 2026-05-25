@@ -1072,18 +1072,48 @@ a.btn {
   font-size: 20px;
 }
 
-.modal-header .btn {
-  width: 30px;
-  height: 30px;
-  padding: 0;
+.modal-header .btn-close {
+  width: 32px;
+  height: 32px;
+  padding: 0 !important;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--shadow-sm);
+  outline: none;
+  cursor: pointer;
 }
 
-.modal-header .btn:hover {
-  background: rgba(255, 255, 255, 0.08);
+[data-theme="light"] .modal-header .btn-close {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.05);
+}
+
+.modal-header .btn-close:hover {
+  background: rgba(255, 255, 255, 0.12);
   color: var(--text-main);
+  border-color: var(--border-hover);
+  transform: scale(1.08);
+}
+
+[data-theme="light"] .modal-header .btn-close:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.modal-header .btn-close:active {
+  transform: scale(0.92);
+}
+
+.modal-header .btn-close i {
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .form-group {
@@ -1704,8 +1734,14 @@ a.btn {
   }
 
   .form-group input,
-  .modal .btn {
+  .modal .btn:not(.btn-close) {
     min-height: 44px;
+  }
+
+  .modal .btn-close {
+    min-height: auto !important;
+    height: 32px !important;
+    width: 32px !important;
   }
 
   .key-input-wrap .input-brutal {

@@ -862,14 +862,14 @@ function renderSettingsModal() {
       <div class="modal card animate-fade">
         <div class="modal-header">
           <h2>${isSignIn ? 'Sign In' : 'Create Account'}</h2>
-          <button class="btn btn-secondary" onclick="toggleSettings()" style="padding: 5px 10px;">X</button>
+          <button type="button" class="btn btn-close" onclick="toggleSettings()"><i class="ph-bold ph-x"></i></button>
         </div>
         <p style="color:var(--text-muted); margin-bottom:20px; font-size:14px;">
           ${isSignIn ? 'Sign in to save your model answers and sync keys securely.' : 'Create an account so you can save answers and store your API keys per user.'}
         </p>
         ${isSignIn ? `
           <div style="display:flex; gap:12px; flex-direction:column;">
-            <form onsubmit="handleSignIn(event)">
+            <form onsubmit="handleSignIn(event)" onkeydown="if(event.key === 'Enter') { const btn = this.querySelector('button[type=\\'submit\\']'); if(btn) { event.preventDefault(); btn.click(); } }">
               <div class="form-group"><label>Email Address</label><input name="email" type="email" placeholder="you@example.com" class="input-brutal" required></div>
               <div class="form-group"><label>Password</label><input name="password" type="password" placeholder="••••••••" class="input-brutal" required></div>
               <div style="display:flex; flex-direction:column; gap:10px; margin-top:8px;">
@@ -880,7 +880,7 @@ function renderSettingsModal() {
           </div>
         ` : `
           <div style="display:flex; gap:12px; flex-direction:column;">
-            <form onsubmit="handleSignUp(event)">
+            <form onsubmit="handleSignUp(event)" onkeydown="if(event.key === 'Enter') { const btn = this.querySelector('button[type=\\'submit\\']'); if(btn) { event.preventDefault(); btn.click(); } }">
               <div class="form-group"><label>Email Address</label><input name="email" type="email" placeholder="you@example.com" class="input-brutal" required></div>
               <div class="form-group"><label>Password</label><input name="password" type="password" placeholder="••••••••" class="input-brutal" required></div>
               <div style="display:flex; flex-direction:column; gap:10px; margin-top:8px;">
@@ -928,9 +928,9 @@ function renderSettingsModal() {
     <div class="modal card">
       <div class="modal-header">
         <h2>Settings</h2>
-        <button class="btn btn-secondary" onclick="toggleSettings()" style="padding: 5px 10px;">X</button>
+        <button type="button" class="btn btn-close" onclick="toggleSettings()"><i class="ph-bold ph-x"></i></button>
       </div>
-      <form onsubmit="saveSettings(event)" style="display:flex; flex-direction: column; gap: 16px;">
+      <form onsubmit="saveSettings(event)" onkeydown="if(event.key === 'Enter' && event.target.tagName !== 'TEXTAREA') { const btn = this.querySelector('button[type=\\'submit\\']'); if(btn) { event.preventDefault(); btn.click(); } }" style="display:flex; flex-direction: column; gap: 16px;">
         <div class="form-group">
           <label>OpenRouter API Key (Standard)</label>
           <div class="key-input-wrap">
