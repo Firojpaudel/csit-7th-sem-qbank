@@ -1671,3 +1671,57 @@ a.btn {
     font-size: 15px;
   }
 }
+
+/* Gorgeous iOS HIG style Bottom Sheet Modal for Mobile */
+@media (max-width: 576px) {
+  .modal {
+    position: fixed !important;
+    top: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    transform: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
+    padding: 24px 20px calc(24px + env(safe-area-inset-bottom)) !important;
+    max-height: 85vh !important;
+    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+    box-sizing: border-box;
+    overflow-y: auto;
+  }
+
+  .modal::before {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 4px;
+    background: var(--border-hover);
+    border-radius: 99px;
+    margin: -12px auto 16px;
+  }
+
+  .form-group input,
+  .modal .btn {
+    min-height: 44px;
+  }
+
+  .key-input-wrap .input-brutal {
+    min-height: 44px;
+  }
+
+  .btn-eye {
+    min-height: 44px !important;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
