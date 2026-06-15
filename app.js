@@ -35,7 +35,8 @@ let state = {
   authMode: 'signin',
   neonStatus: 'loading',
   userKeys: {},
-  theme: localStorage.getItem('theme') || 'dark'
+  theme: localStorage.getItem('theme') || 'dark',
+  viewMode: localStorage.getItem('view_mode') || 'board'
 };
 
 function setCurrentUser(user) {
@@ -159,30 +160,33 @@ function setYearForQuestion(qText, year) {
 }
 
 function getYearsForSubject(subId) {
-  const qs = state.subjects[subId].questions || [];
   const map = loadYearMap();
   const years = new Set();
   years.add('all');
   years.add('unknown');
   const yearRegex = /\b(19|20)\d{2}\b/g;
-  for (const q of qs) {
-    const text = typeof q === 'object' ? q.text : q;
-    const y = typeof q === 'object' && q.year ? q.year : (map[text] || 'unknown');
-    if (y) {
-      years.add(y);
-      continue;
+
+  if (state.viewMode === 'chapters') {
+    const chapters = state.subjects[subId].chapters || [];
+    for (const ch of chapters) {
+      for (const q of ch.questions) {
+        const text = q.text;
+        const y = q.year || map[text] || 'unknown';
+        if (y) {
+          years.add(y);
+        }
+      }
     }
-    // attempt to auto-detect year in text
-    const found = text.match(yearRegex);
-    if (found && found.length) {
-      // take first match
-      years.add(found[0]);
-      // persist detection so UI remembers it
-      map[text] = found[0];
+  } else {
+    const qs = state.subjects[subId].questions || [];
+    for (const q of qs) {
+      const text = typeof q === 'object' ? q.text : q;
+      const y = typeof q === 'object' && q.year ? q.year : (map[text] || 'unknown');
+      if (y) {
+        years.add(y);
+      }
     }
   }
-  // save any auto-detected years into map
-  saveYearMap(map);
   return Array.from(years);
 }
 
@@ -310,6 +314,7 @@ async function init() {
     state.subjects[sub.id] = {
       title: sub.title,
       questions: [],
+      chapters: [],
       answers: savedAnswers[sub.id] || {},
       status: 'idle',
       error: null
@@ -362,6 +367,11 @@ async function init() {
 function loadDataFromDB() {
   SUBJECTS.forEach(sub => {
     state.subjects[sub.id].questions = QUESTIONS_DB[sub.id] || [];
+    if (typeof IMPORTANT_QUESTIONS_DB !== 'undefined' && IMPORTANT_QUESTIONS_DB[sub.id]) {
+      state.subjects[sub.id].chapters = JSON.parse(JSON.stringify(IMPORTANT_QUESTIONS_DB[sub.id]));
+    } else {
+      state.subjects[sub.id].chapters = [];
+    }
   });
 }
 
@@ -377,6 +387,10 @@ function saveAnswers() {
 const SUBJECT_PROMPTS = {
   'advanced-java': `You are an expert Java programming instructor and examiner for BSc CSIT (Tribhuvan University, Nepal) 7th Semester — Advanced Java Programming.
 
+**CRITICAL EXAM PREPARATION CONTEXT:**
+- EXAM PREPARATION: The user is preparing for university board exams. Answer properly, following standard university marking schemes. Make answers structured, clear, and easy to read.
+- DO NOT OVERENGINEER: For all programming solutions, KEEP CODE AS EASY AND CLEAR AS POSSIBLE. Do NOT use complex architectures, custom wrappers, or unnecessary design patterns. Use minimal, direct, standard library APIs (e.g., basic Swing/AWT, direct JDBC statement, direct TCP Sockets, basic RMI interfaces). The code must be extremely easy to understand, memorize, and write by hand on paper during the board exam.
+
 Course scope: Swing GUI, AWT, JDBC, Servlets, JSP, JavaBeans, RMI, Java Networking (Sockets, URL, HTTP), Multithreading, Collections, Generics, Lambda, Stream API, Design Patterns in Java.
 
 You are answering a university exam question worth 5–16 marks. Follow these rules strictly:
@@ -384,7 +398,7 @@ You are answering a university exam question worth 5–16 marks. Follow these ru
 **Answer Format:**
 - Start with a crisp 1–2 line definition or concept overview
 - Use clear numbered sections for multi-part questions
-- Include working Java code examples (properly indented, with comments) whenever the question involves programming
+- Include working Java code examples (properly indented, with step-by-step comments) whenever the question involves programming
 - For comparison questions, use a markdown table
 - For "explain" questions: definition → working mechanism → real-world use case → code snippet
 - For listing questions: numbered list with 1-line explanation per point
@@ -396,13 +410,16 @@ You are answering a university exam question worth 5–16 marks. Follow these ru
 - 16-mark questions: ~700–1000 words, multiple sections, code, table, example
 
 **Java Code & Exam Optimization Rules:**
-- KEEP CODE SIMPLE & MEMORIZABLE: Design code examples to be minimal, clear, robust, and extremely easy to write by hand on paper during a board exam.
-- AVOID OVERENGINEERING: Do NOT use complex architectures, nested structures, custom wrappers, or unnecessary design patterns unless explicitly requested. Use direct standard library APIs (e.g., basic Swing frames, simple java.sql Connection/Statement, direct java.net Socket/ServerSocket, basic RMI interfaces).
+- KEEP CODE SIMPLE & MEMORIZABLE: Design code examples to be minimal, clear, robust, and extremely easy to write by hand on paper.
 - PROPERLY DOCUMENT (COMMENT) THE CODE: Provide clear, sequential, step-by-step inline comments (using '//') explaining exactly what key classes, methods, parameters, and GUI setups do so the code is easy to understand and remember.
 - All Java code must be syntactically correct, basic, and fully compilable.
 - Mention Java version context where relevant (Java 8+ features like lambdas, streams).`,
 
   'data-mining': `You are an expert Data Warehousing and Data Mining (DWDM) professor and examiner for BSc CSIT (Tribhuvan University, Nepal) 7th Semester.
+
+**CRITICAL EXAM PREPARATION CONTEXT:**
+- EXAM PREPARATION: The user is preparing for university board exams. Answer properly, following standard university marking schemes. Make answers structured, clear, and easy to read.
+- DO NOT OVERENGINEER: For any pseudo-code, algorithms, or calculations, KEEP THE LOGIC AS EASY AND CLEAR AS POSSIBLE. The formulas, numbers, and derivations must be extremely easy to understand, memorize, and write by hand on paper during the board exam.
 
 Course scope: Data Warehousing concepts (OLAP, OLTP, star/snowflake/fact constellation schemas, data cube), ETL, Data Preprocessing (cleaning, integration, transformation, reduction), Association Rule Mining (Apriori, FP-Growth, confidence, support, lift), Classification (Decision Trees, Naive Bayes, KNN, SVM, Neural Networks, Evaluation metrics), Clustering (K-Means, DBSCAN, Hierarchical), Regression, Web Mining, Text Mining.
 
@@ -428,6 +445,10 @@ You are answering a university exam question worth 5–16 marks. Follow these ru
 
   'pom': `You are an expert Management professor and examiner for BSc CSIT (Tribhuvan University, Nepal) 7th Semester — Principles of Management.
 
+**CRITICAL EXAM PREPARATION CONTEXT:**
+- EXAM PREPARATION: The user is preparing for university board exams. Answer properly, following standard university marking schemes. Make answers structured, clear, and easy to read.
+- DO NOT OVERENGINEER: Keep explanations and frameworks straightforward, clear, and direct. The concepts must be extremely easy to understand, memorize, and write by hand on paper during the board exam.
+
 Course scope: Evolution of management thought (Classical, Behavioral, Quantitative, Systems, Contingency), Functions of management (Planning, Organizing, Staffing, Leading, Controlling), Decision Making, Organizational Structure & Design, Motivation theories (Maslow, Herzberg, McGregor, Vroom), Leadership styles, Communication, Conflict management, Change management, MBO, Corporate Social Responsibility.
 
 You are answering a university exam question worth 5–16 marks. Follow these rules strictly:
@@ -452,6 +473,10 @@ You are answering a university exam question worth 5–16 marks. Follow these ru
 - Relate concepts to IT industry context where possible (managing software teams, agile orgs).`,
 
   'software-project-management': `You are an expert Software Project Management professor and examiner for BSc CSIT (Tribhuvan University, Nepal) 7th Semester.
+
+**CRITICAL EXAM PREPARATION CONTEXT:**
+- EXAM PREPARATION: The user is preparing for university board exams. Answer properly, following standard university marking schemes. Make answers structured, clear, and easy to read.
+- DO NOT OVERENGINEER: For any estimation formulas, scheduling derivations, or project management methodologies, KEEP THE SOLUTIONS AS EASY AND CLEAR AS POSSIBLE. The formulas, network diagrams, and calculations must be extremely easy to understand, memorize, and write by hand on paper during the board exam.
 
 Course scope: Software project planning, estimation techniques (COCOMO, Function Point, Use Case Point), scheduling (Gantt charts, PERT, CPM, network diagrams), risk management, software quality assurance (SQA), software metrics and measurement, project monitoring and control, team management, configuration management, SDLC models (Waterfall, Agile, Scrum, XP, Spiral), project closure, software contracts and procurement.
 
@@ -538,6 +563,15 @@ async function callAI(questionText, subjectId) {
 // Actions
 function setSubject(id) {
   state.activeSubject = id;
+  render();
+}
+
+function setViewMode(mode) {
+  state.viewMode = mode;
+  localStorage.setItem('view_mode', mode);
+  // Reset selectedYear to 'all' to prevent mismatching years in different view modes
+  state.selectedYear = 'all';
+  localStorage.setItem('selected_year', 'all');
   render();
 }
 
@@ -702,13 +736,18 @@ function signOut() {
   render();
 }
 
-function toggleAnswer(subjectId, questionIndex) {
-  const qState = state.subjects[subjectId].questions[questionIndex];
-  qState.expanded = !qState.expanded;
+function toggleAnswer(subjectId, mode, idx1, idx2) {
+  let qObj;
+  if (mode === 'chapters') {
+    qObj = state.subjects[subjectId].chapters[idx1].questions[idx2];
+  } else {
+    qObj = state.subjects[subjectId].questions[idx1];
+  }
+  qObj.expanded = !qObj.expanded;
   render();
 }
 
-async function handleGenerateAnswer(subjectId, questionIndex) {
+async function handleGenerateAnswer(subjectId, mode, idx1, idx2) {
   // ✅ Auth gate — must be signed in
   if (!state.currentUser) {
     openAuthMode('signin');
@@ -716,12 +755,18 @@ async function handleGenerateAnswer(subjectId, questionIndex) {
   }
 
   const subject = state.subjects[subjectId];
-  const questionText = subject.questions[questionIndex].text || subject.questions[questionIndex];
-  const qObj = typeof subject.questions[questionIndex] === 'object' ? subject.questions[questionIndex] : { text: questionText };
-
-  if (typeof subject.questions[questionIndex] === 'string') {
-    subject.questions[questionIndex] = qObj;
+  let qObj;
+  if (mode === 'chapters') {
+    qObj = subject.chapters[idx1].questions[idx2];
+  } else {
+    qObj = subject.questions[idx1];
+    if (typeof qObj === 'string') {
+      subject.questions[idx1] = { text: qObj };
+      qObj = subject.questions[idx1];
+    }
   }
+
+  const questionText = qObj.text;
 
   if (state.useTurbo) {
     if (!state.groqKey) {
@@ -742,12 +787,12 @@ async function handleGenerateAnswer(subjectId, questionIndex) {
   render();
 
   try {
-    const answer = await callAI(qObj.text, subjectId);
-    subject.answers[qObj.text] = answer;
+    const answer = await callAI(questionText, subjectId);
+    subject.answers[questionText] = answer;
     saveAnswers();
     // Fire-and-forget save to Neon if enabled
     if (state.neonEnabled) {
-      sendToNeon(state.activeSubject, qObj.text, answer).catch((err) => {
+      sendToNeon(subjectId, questionText, answer).catch((err) => {
         console.warn('Neon save failed:', err.message || err);
       });
     }
@@ -797,10 +842,23 @@ async function handleGenerateAll(subjectId) {
     }
   }
 
-  const unanswered = subject.questions.filter(q => {
-    const text = typeof q === 'object' ? q.text : q;
-    return !subject.answers[text];
-  });
+  let unanswered = [];
+  if (state.viewMode === 'chapters') {
+    subject.chapters.forEach((ch, chIdx) => {
+      ch.questions.forEach((q, qIdx) => {
+        if (!subject.answers[q.text]) {
+          unanswered.push({ mode: 'chapters', idx1: chIdx, idx2: qIdx });
+        }
+      });
+    });
+  } else {
+    subject.questions.forEach((q, qIdx) => {
+      const text = typeof q === 'object' ? q.text : q;
+      if (!subject.answers[text]) {
+        unanswered.push({ mode: 'board', idx1: qIdx });
+      }
+    });
+  }
 
   if (unanswered.length === 0) return;
 
@@ -809,20 +867,36 @@ async function handleGenerateAll(subjectId) {
   }
 
   state.isGeneratingAll = true;
-  for (let i = 0; i < subject.questions.length; i++) {
-    const questionText = typeof subject.questions[i] === 'object' ? subject.questions[i].text : subject.questions[i];
-    if (!subject.answers[questionText]) {
-      await handleGenerateAnswer(subjectId, i);
-      // Add a small delay to prevent rate limits
-      await new Promise(r => setTimeout(r, 1000));
+  for (const item of unanswered) {
+    if (state.viewMode === 'chapters') {
+      const q = subject.chapters[item.idx1].questions[item.idx2];
+      if (!subject.answers[q.text]) {
+        await handleGenerateAnswer(subjectId, 'chapters', item.idx1, item.idx2);
+        // Add a small delay to prevent rate limits
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    } else {
+      const q = subject.questions[item.idx1];
+      const text = typeof q === 'object' ? q.text : q;
+      if (!subject.answers[text]) {
+        await handleGenerateAnswer(subjectId, 'board', item.idx1);
+        // Add a small delay to prevent rate limits
+        await new Promise(r => setTimeout(r, 1000));
+      }
     }
   }
   state.isGeneratingAll = false;
 }
 
-function copyAnswer(subjectId, questionIdx) {
+function copyAnswer(subjectId, mode, idx1, idx2) {
   const subject = state.subjects[subjectId];
-  const qStr = typeof subject.questions[questionIdx] === 'object' ? subject.questions[questionIdx].text : subject.questions[questionIdx];
+  let qObj;
+  if (mode === 'chapters') {
+    qObj = subject.chapters[idx1].questions[idx2];
+  } else {
+    qObj = subject.questions[idx1];
+  }
+  const qStr = typeof qObj === 'object' ? qObj.text : qObj;
   const text = subject.answers[qStr];
   if (text) {
     navigator.clipboard.writeText(text).then(() => {
@@ -986,147 +1060,229 @@ function renderTabs() {
 }
 
 
+function renderQuestionCard(q, displayIdx, mode, idx1, idx2) {
+  const badgeHtml = state.currentUser ? (q.isAnswered
+    ? '<span class="status-badge badge-answered"><i class="ph-bold ph-check-circle"></i> ANSWERED</span>'
+    : '<span class="status-badge badge-unanswered"><i class="ph-bold ph-clock"></i> UNANSWERED</span>') : '';
+
+  const yearVal = q.obj.year || getYearForQuestion(q.text) || 'Unknown';
+  const typeVal = q.obj.type || 'General Questions';
+  const yearBadge = `<span class="status-badge badge-year"><i class="ph-bold ph-calendar"></i> ${yearVal}</span>`;
+  const typeBadge = `<span class="status-badge badge-type"><i class="ph-bold ph-tag"></i> ${typeVal}</span>`;
+
+  const renderAiLinksHelper = () => {
+    return `
+      <div class="ai-links">
+        <a href="${aiPromptBuilder(q.text, 'chatgpt', state.activeSubject)}" target="_blank" class="btn btn-glow btn-chatgpt" title="Ask ChatGPT"><img src="assets/chatgpt.png" alt="ChatGPT" class="ai-logo"> Ask ChatGPT</a>
+        <a href="${aiPromptBuilder(q.text, 'claude', state.activeSubject)}" target="_blank" class="btn btn-glow btn-claude" title="Ask Claude"><img src="assets/claude-color.png" alt="Claude" class="ai-logo"> Ask Claude</a>
+      </div>
+    `;
+  };
+
+  let actionsHtml = '';
+  let contentHtml = '';
+
+  if (!state.currentUser) {
+    actionsHtml = `
+      <button class="btn btn-signin-gate" onclick="openAuthMode('signin')">
+        <i class="ph-bold ph-lock"></i> Sign In to Generate Answer
+      </button>
+      ${renderAiLinksHelper()}
+    `;
+  } else if (q.obj.generating) {
+    actionsHtml = `<button class="btn btn-primary" disabled style="opacity:0.8;"><i class="ph-bold ph-spinner ph-spin"></i> Generating...</button>`;
+  } else if (q.isAnswered) {
+    actionsHtml = `
+      <button class="btn btn-secondary" onclick="toggleAnswer('${state.activeSubject}', '${mode}', ${idx1}, ${idx2})">
+        ${q.obj.expanded ? '<i class="ph-bold ph-caret-up"></i> Hide Answer' : '<i class="ph-bold ph-caret-down"></i> Show Answer'}
+      </button>
+      <button class="btn btn-regenerate" onclick="handleGenerateAnswer('${state.activeSubject}', '${mode}', ${idx1}, ${idx2})"><i class="ph-bold ph-arrows-clockwise"></i> Regenerate</button>
+      ${renderAiLinksHelper()}
+    `;
+
+    if (q.obj.expanded) {
+      let formattedAnswer = window.marked ? marked.parse(q.answer) : q.answer;
+      contentHtml = `
+        <div class="answer-box">
+           <div class="answer-actions">
+             <button class="btn btn-secondary" onclick="copyAnswer('${state.activeSubject}', '${mode}', ${idx1}, ${idx2})" style="font-size: 0.8rem; padding: 5px 10px;">Copy Text</button>
+           </div>
+           ${formattedAnswer}
+        </div>
+      `;
+    }
+  } else {
+    actionsHtml = `
+        <button class="btn btn-primary" onclick="handleGenerateAnswer('${state.activeSubject}', '${mode}', ${idx1}, ${idx2})"><i class="ph-bold ph-sparkle"></i> Generate Answer</button>
+        ${renderAiLinksHelper()}
+    `;
+  }
+
+  let errorHtml = '';
+  if (q.obj.error) {
+    const safeMsg = String(q.obj.error).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    errorHtml = `<div class="answer-state error">${safeMsg}. If this is an endpoint or API issue, check Settings and your API key.</div>`;
+  }
+
+  return `
+    <div class="card question-card">
+      <div class="question-header" style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+        <div class="q-number">Q${displayIdx + 1}</div>
+        ${badgeHtml}
+        ${yearBadge}
+        ${typeBadge}
+      </div>
+      ${renderQuestionContent(q.text)}
+      ${errorHtml}
+      <div class="question-actions" style="margin-top: 15px; display: flex; flex-wrap:wrap; gap: 10px; align-items: center;">
+        ${actionsHtml}
+      </div>
+      ${contentHtml}
+    </div>
+  `;
+}
+
 function renderQuestionList() {
   const currentSub = state.subjects[state.activeSubject];
 
-  if (currentSub.questions.length === 0) {
-    return `<div class="card" style="text-align: center; padding: 3rem;">
-        <h3>No Questions Found</h3>
-        <p>Please paste raw text into the corresponding text file for this subject and populate <strong>db.js</strong> manually.</p>
-    </div>`;
-  }
+  if (state.viewMode === 'chapters') {
+    if (!currentSub.chapters || currentSub.chapters.length === 0) {
+      return `<div class="card" style="text-align: center; padding: 3rem;">
+          <h3>No Chapters Found</h3>
+          <p>Please populate <strong>db_important.js</strong> manually.</p>
+      </div>`;
+    }
 
-  let processedQs = currentSub.questions.map((q, idx) => {
-    const text = typeof q === 'object' ? q.text : q;
-    const isAnswered = !!currentSub.answers[text];
-    return {
-      originalIdx: idx,
-      text: text,
-      obj: typeof q === 'object' ? q : { text },
-      isAnswered,
-      answer: currentSub.answers[text]
-    };
-  });
+    let renderedChapters = [];
+    let qCounter = 0;
 
-  // Apply year filter (after processedQs is available)
-  if (state.selectedYear && state.selectedYear !== 'all') {
-    const sel = state.selectedYear;
-    processedQs = processedQs.filter(q => {
-      const y = q.obj.year || getYearForQuestion(q.text) || 'unknown';
-      if (sel === 'unknown') return !y || y === 'unknown';
-      return String(y) === String(sel);
-    });
-  }
+    currentSub.chapters.forEach((ch, chIdx) => {
+      let questionsInChapter = ch.questions.map((q, idx) => {
+        const text = q.text;
+        const isAnswered = !!currentSub.answers[text];
+        return {
+          originalIdx: idx,
+          chapterIdx: chIdx,
+          text: text,
+          obj: q,
+          isAnswered,
+          answer: currentSub.answers[text]
+        };
+      });
 
-  if (state.filter === 'answered') {
-    processedQs = processedQs.filter(q => q.isAnswered);
-  } else if (state.filter === 'unanswered') {
-    processedQs = processedQs.filter(q => !q.isAnswered);
-  }
+      // Filter by Year
+      if (state.selectedYear && state.selectedYear !== 'all') {
+        const sel = state.selectedYear;
+        questionsInChapter = questionsInChapter.filter(q => {
+          const y = q.obj.year || getYearForQuestion(q.text) || 'unknown';
+          if (sel === 'unknown') return !y || y === 'unknown';
+          return String(y) === String(sel);
+        });
+      }
 
+      // Filter by Answered status
+      if (state.filter === 'answered') {
+        questionsInChapter = questionsInChapter.filter(q => q.isAnswered);
+      } else if (state.filter === 'unanswered') {
+        questionsInChapter = questionsInChapter.filter(q => !q.isAnswered);
+      }
 
-  if (state.search) {
-    processedQs = processedQs.filter(q => q.text.toLowerCase().includes(state.search));
-  }
+      // Filter by Search text
+      if (state.search) {
+        questionsInChapter = questionsInChapter.filter(q => q.text.toLowerCase().includes(state.search));
+      }
 
-  if (processedQs.length === 0) {
-    return `<p style="text-align: center; font-weight: bold; margin-top: 30px;">No questions match your filter.</p>`;
-  }
-
-  return processedQs.map((q, displayIdx) => {
-    const badgeHtml = state.currentUser ? (q.isAnswered
-      ? '<span class="status-badge badge-answered"><i class="ph-bold ph-check-circle"></i> ANSWERED</span>'
-      : '<span class="status-badge badge-unanswered"><i class="ph-bold ph-clock"></i> UNANSWERED</span>') : '';
-
-    const yearVal = q.obj.year || getYearForQuestion(q.text) || 'Unknown';
-    const typeVal = q.obj.type || 'General Questions';
-    const yearBadge = `<span class="status-badge badge-year"><i class="ph-bold ph-calendar"></i> ${yearVal}</span>`;
-    const typeBadge = `<span class="status-badge badge-type"><i class="ph-bold ph-tag"></i> ${typeVal}</span>`;
-
-    const renderAiLinksHelper = () => {
-      return `
-        <div class="ai-links">
-                <a href="${aiPromptBuilder(q.text, 'chatgpt', state.activeSubject)}" target="_blank" class="btn btn-glow btn-chatgpt" title="Ask ChatGPT"><img src="assets/chatgpt.png" alt="ChatGPT" class="ai-logo"> Ask ChatGPT</a>
-                <a href="${aiPromptBuilder(q.text, 'claude', state.activeSubject)}" target="_blank" class="btn btn-glow btn-claude" title="Ask Claude"><img src="assets/claude-color.png" alt="Claude" class="ai-logo"> Ask Claude</a>
-        </div>
-      `;
-    };
-
-    let actionsHtml = '';
-    let contentHtml = '';
-
-    if (!state.currentUser) {
-      // ── Guest: locked state ─────────────────────────────────────────────
-      actionsHtml = `
-        <button class="btn btn-signin-gate" onclick="openAuthMode('signin')">
-          <i class="ph-bold ph-lock"></i> Sign In to Generate Answer
-        </button>
-        ${renderAiLinksHelper()}
-      `;
-      // No contentHtml — guests see no answers
-    } else if (q.obj.generating) {
-      actionsHtml = `<button class="btn btn-primary" disabled style="opacity:0.8;"><i class="ph-bold ph-spinner ph-spin"></i> Generating...</button>`;
-    } else if (q.isAnswered) {
-      actionsHtml = `
-        <button class="btn btn-secondary" onclick="toggleAnswer('${state.activeSubject}', ${q.originalIdx})">
-          ${q.obj.expanded ? '<i class="ph-bold ph-caret-up"></i> Hide Answer' : '<i class="ph-bold ph-caret-down"></i> Show Answer'}
-        </button>
-        <button class="btn btn-regenerate" onclick="handleGenerateAnswer('${state.activeSubject}', ${q.originalIdx})"><i class="ph-bold ph-arrows-clockwise"></i> Regenerate</button>
-        ${renderAiLinksHelper()}
-      `;
-
-      if (q.obj.expanded) {
-        let formattedAnswer = window.marked ? marked.parse(q.answer) : q.answer;
-        contentHtml = `
-          <div class="answer-box">
-             <div class="answer-actions">
-               <button class="btn btn-secondary" onclick="copyAnswer('${state.activeSubject}', ${q.originalIdx})" style="font-size: 0.8rem; padding: 5px 10px;">Copy Text</button>
-             </div>
-             ${formattedAnswer}
+      if (questionsInChapter.length > 0) {
+        const chapterHtml = `
+          <div class="chapter-block">
+            <div class="chapter-title">
+              <span class="chapter-number">Ch ${chIdx + 1}</span>
+              <span>${ch.chapter}</span>
+            </div>
+            <div class="chapter-questions-list">
+              ${questionsInChapter.map(q => {
+                const card = renderQuestionCard(q, qCounter, 'chapters', q.chapterIdx, q.originalIdx);
+                qCounter++;
+                return card;
+              }).join('')}
+            </div>
           </div>
         `;
+        renderedChapters.push(chapterHtml);
       }
-    } else {
-      actionsHtml = `
-          <button class="btn btn-primary" onclick="handleGenerateAnswer('${state.activeSubject}', ${q.originalIdx})"><i class="ph-bold ph-sparkle"></i> Generate Answer</button>
-          ${renderAiLinksHelper()}
-      `;
+    });
+
+    if (renderedChapters.length === 0) {
+      return `<p style="text-align: center; font-weight: bold; margin-top: 30px;">No questions match your filter.</p>`;
     }
 
-    let errorHtml = '';
-    if (q.obj.error) {
-      // Friendly, styled error message with hint
-      const safeMsg = String(q.obj.error).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      errorHtml = `<div class="answer-state error">${safeMsg}. If this is an endpoint or API issue, check Settings and your API key.</div>`;
+    return renderedChapters.join('');
+  } else {
+    if (currentSub.questions.length === 0) {
+      return `<div class="card" style="text-align: center; padding: 3rem;">
+          <h3>No Questions Found</h3>
+          <p>Please paste raw text into the corresponding text file for this subject and populate <strong>db.js</strong> manually.</p>
+      </div>`;
     }
 
-    return `
-      <div class="card question-card">
-        <div class="question-header" style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
-          <div class="q-number">Q${displayIdx + 1}</div>
-          ${badgeHtml}
-          ${yearBadge}
-          ${typeBadge}
-        </div>
-        ${renderQuestionContent(q.text)}
-        ${errorHtml}
-        <div class="question-actions" style="margin-top: 15px; display: flex; flex-wrap:wrap; gap: 10px; align-items: center;">
-          ${actionsHtml}
-        </div>
-        ${contentHtml}
-      </div>
-    `;
-  }).join('');
+    let processedQs = currentSub.questions.map((q, idx) => {
+      const text = typeof q === 'object' ? q.text : q;
+      const isAnswered = !!currentSub.answers[text];
+      return {
+        originalIdx: idx,
+        text: text,
+        obj: typeof q === 'object' ? q : { text },
+        isAnswered,
+        answer: currentSub.answers[text]
+      };
+    });
+
+    // Apply year filter
+    if (state.selectedYear && state.selectedYear !== 'all') {
+      const sel = state.selectedYear;
+      processedQs = processedQs.filter(q => {
+        const y = q.obj.year || getYearForQuestion(q.text) || 'unknown';
+        if (sel === 'unknown') return !y || y === 'unknown';
+        return String(y) === String(sel);
+      });
+    }
+
+    if (state.filter === 'answered') {
+      processedQs = processedQs.filter(q => q.isAnswered);
+    } else if (state.filter === 'unanswered') {
+      processedQs = processedQs.filter(q => !q.isAnswered);
+    }
+
+    if (state.search) {
+      processedQs = processedQs.filter(q => q.text.toLowerCase().includes(state.search));
+    }
+
+    if (processedQs.length === 0) {
+      return `<p style="text-align: center; font-weight: bold; margin-top: 30px;">No questions match your filter.</p>`;
+    }
+
+    return processedQs.map((q, displayIdx) => {
+      return renderQuestionCard(q, displayIdx, 'board', q.originalIdx);
+    }).join('');
+  }
 }
 
 
 // Main Render Function
 function render() {
+  const searchFocused = document.activeElement && document.activeElement.id === 'question-search-input';
+  const selectionStart = searchFocused ? document.activeElement.selectionStart : null;
+  const selectionEnd = searchFocused ? document.activeElement.selectionEnd : null;
+
   const container = document.getElementById('app');
 
   const currentSub = state.subjects[state.activeSubject];
-  const totalQs = currentSub.questions.length;
-  const answeredQs = Object.keys(currentSub.answers).length;
+  const totalQs = state.viewMode === 'chapters'
+    ? (currentSub.chapters ? currentSub.chapters.reduce((acc, c) => acc + c.questions.length, 0) : 0)
+    : currentSub.questions.length;
+  const answeredQs = state.viewMode === 'chapters'
+    ? (currentSub.chapters ? currentSub.chapters.reduce((acc, c) => acc + c.questions.filter(q => currentSub.answers[q.text]).length, 0) : 0)
+    : currentSub.questions.filter(q => currentSub.answers[typeof q === 'object' ? q.text : q]).length;
 
   let neonIndicator = '';
   if (state.neonStatus === 'connected') {
@@ -1216,6 +1372,14 @@ function render() {
           <div>
             <h2>${currentSub.title}</h2>
             <p class="stats-text">${totalQs} Questions${state.currentUser ? ` • ${answeredQs} Answered` : ''}</p>
+            <div class="view-mode-selector" style="margin-top: 10px;">
+              <button class="view-mode-btn ${state.viewMode === 'board' ? 'active' : ''}" onclick="setViewMode('board')">
+                <i class="ph-bold ph-file-text"></i> Past Board Exams
+              </button>
+              <button class="view-mode-btn ${state.viewMode === 'chapters' ? 'active' : ''}" onclick="setViewMode('chapters')">
+                <i class="ph-bold ph-list-numbers"></i> Chapter-Wise QBank
+              </button>
+            </div>
           </div>
           <div style="display: flex; gap: 10px; align-items:center; flex-wrap:wrap;">
             <button class="btn btn-primary btn-glow" onclick="handleGenerateAll('${state.activeSubject}')" ${state.isGeneratingAll ? 'disabled' : ''}>
@@ -1240,6 +1404,7 @@ function render() {
           <div class="search-wrap">
             <i class="ph-bold ph-magnifying-glass search-icon"></i>
             <input type="text" 
+            id="question-search-input"
             class="search-bar input-brutal" 
             placeholder="Search questions..." 
             value="${state.search}"
@@ -1261,6 +1426,16 @@ function render() {
       </main>
     </div>
   `;
+
+  if (searchFocused) {
+    const searchInput = document.getElementById('question-search-input');
+    if (searchInput) {
+      searchInput.focus();
+      if (selectionStart !== null && selectionEnd !== null) {
+        searchInput.setSelectionRange(selectionStart, selectionEnd);
+      }
+    }
+  }
 
   setTimeout(() => {
     if (window.renderMathInElement) {
